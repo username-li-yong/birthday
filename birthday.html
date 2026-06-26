@@ -3778,23 +3778,57 @@ function launchPhase3(overlay,ps){
     });
   }
 
-  // 气球绘制函数
+  // 水滴形气球绘制（贝塞尔 + 高光月牙 + 气嘴打结 + 波浪飘带）
   function drawBalloon(b){
     if(frame<b.delay) return;
-    const bx=b.x+Math.sin(b.ph)*.8;
-    ctx.save(); ctx.beginPath();
-    ctx.ellipse(bx,b.y,b.sz,b.sz*1.3,0,0,Math.PI*2);
-    const g=ctx.createRadialGradient(bx-b.sz*.2,b.y-b.sz*.3,b.sz*.1,bx,b.y,b.sz);
-    g.addColorStop(0,"rgba(255,255,255,.7)"); g.addColorStop(.6,b.color); g.addColorStop(1,"rgba(0,0,0,.1)");
+    const bx=b.x+Math.sin(b.ph)*.8; // 正弦波摆动后的 X
+    const W=b.sz*1.05, H=b.sz*1.45; // 宽高比：上胖下收的水滴形
+    const ty=b.y-H*.5, by=b.y+H*.5; // top/bottom Y
+    const hy=b.y+H*.28; // 最宽处 Y
+
+    ctx.save(); ctx.globalAlpha=.82;
+
+    // 水滴/卵形轮廓
+    ctx.beginPath();
+    ctx.moveTo(bx,ty+H*.15);
+    // 左上弧→最宽左
+    ctx.bezierCurveTo(bx-W*.9,ty+H*.1, bx-W,hy-H*.15, bx-W*.85,hy+H*.1);
+    // 左宽→底尖
+    ctx.bezierCurveTo(bx-W*.6,by-H*.25, bx-W*.15,by-H*.1, bx,by);
+    // 底尖→右宽
+    ctx.bezierCurveTo(bx+W*.15,by-H*.1, bx+W*.6,by-H*.25, bx+W*.85,hy+H*.1);
+    // 右宽→右上弧
+    ctx.bezierCurveTo(bx+W,hy-H*.15, bx+W*.9,ty+H*.1, bx,ty+H*.15);
+    ctx.closePath();
+
+    // 清透渐变填充
+    const g=ctx.createLinearGradient(bx-W*.4,ty-H*.1,bx+W*.4,by+H*.15);
+    g.addColorStop(0,b.color); g.addColorStop(.45,"rgba(255,255,255,.25)"); g.addColorStop(1,b.color);
     ctx.fillStyle=g; ctx.fill();
-    // 飘带
-    ctx.beginPath(); ctx.strokeStyle=b.color; ctx.lineWidth=1.5; ctx.globalAlpha=.5;
-    ctx.moveTo(bx,b.y+b.sz*1.3);
-    const rlen=25+Math.random()*15, rw=3;
-    ctx.quadraticCurveTo(bx+Math.sin(b.ph*1.4+1)*rw, b.y+b.sz*1.3+rlen*.5, bx+Math.sin(b.ph*2+.5)*rw*1.5, b.y+b.sz*1.3+rlen);
-    ctx.stroke(); ctx.restore();
-    // 结
-    ctx.beginPath(); ctx.arc(bx,b.y+b.sz*1.3,3,0,Math.PI*2); ctx.fillStyle="#666"; ctx.fill();
+
+    // 高光月牙（左上）
+    ctx.beginPath();
+    ctx.ellipse(bx-W*.22,ty+H*.35,W*.12,H*.18,-.4,0,Math.PI*2);
+    ctx.fillStyle="rgba(255,255,255,.35)"; ctx.fill();
+
+    // 气嘴结（等腰小三角）
+    ctx.beginPath();
+    ctx.moveTo(bx,by);
+    ctx.lineTo(bx-3.5,by+6);
+    ctx.lineTo(bx+3.5,by+6);
+    ctx.closePath();
+    ctx.fillStyle="rgba(130,100,80,.5)"; ctx.fill();
+
+    // 飘带（平滑贝塞尔 + 正弦滞后摆动）
+    const rLen=22+Math.random()*14;
+    const swayLag=Math.sin(b.ph*2.2+frame*.04)*3.5;
+    const swayFar=Math.sin(b.ph*1.6+frame*.03)*5;
+    ctx.beginPath(); ctx.strokeStyle=b.color; ctx.lineWidth=1.3; ctx.globalAlpha=.45;
+    ctx.moveTo(bx,by+6);
+    ctx.quadraticCurveTo(bx+swayLag, by+6+rLen*.35, bx+swayFar, by+6+rLen);
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   // 烟花爆炸
