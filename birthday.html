@@ -2195,6 +2195,36 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 .starry-page.show { display: flex; }
 #starryCanvas { position: absolute; inset: 0; z-index: 0; }
 
+/* 蜡烛材质倒计时数字 */
+.cd-big-num {
+  font-size: clamp(120px,25vw,180px); font-weight: bold; line-height: 1;
+  color: #ffe8d0; text-align: center; z-index: 2;
+  text-shadow:
+    0 0 10px rgba(255,200,140,.5),
+    0 0 30px rgba(255,160,100,.4),
+    0 0 60px rgba(255,120,80,.3),
+    0 2px 4px rgba(0,0,0,.15);
+  font-family: "KaiTi","STKaiti","楷体",serif;
+}
+@keyframes cdNumIn {
+  0%{transform:scale(2.5);opacity:0;filter:blur(4px)}
+  40%{transform:scale(.92);opacity:1;filter:blur(0)}
+  100%{transform:scale(1);opacity:1}
+}
+
+/* 火苗 */
+.cd-flame {
+  width: 26px; height: 38px; margin-bottom: 4px; z-index: 3;
+  background: radial-gradient(ellipse at center, rgba(255,220,80,.95), rgba(255,130,30,.8));
+  clip-path: polygon(50% 0%, 32% 55%, 18% 75%, 28% 100%, 50% 88%, 72% 100%, 82% 75%, 68% 55%);
+  box-shadow: 0 0 18px rgba(255,190,50,.7), 0 0 36px rgba(255,140,30,.35);
+  filter: blur(.5px);
+}
+@keyframes cdFlameWiggle {
+  0%{transform:scaleY(1) rotate(-3deg)}
+  100%{transform:scaleY(1.18) rotate(3deg)}
+}
+
 /* ===== 答题弹窗系统 ===== */
 .quiz-overlay {
  position: fixed; inset: 0; z-index: 400; display: none;
@@ -3747,7 +3777,8 @@ function showCakeGuide(){
 let sctx,sarr=[];
 function initStarryCanvas(){
   const c=document.getElementById("starryCanvas"); c.width=window.innerWidth; c.height=window.innerHeight; sctx=c.getContext("2d"); sarr=[];
-  for(let i=0;i<200;i++) sarr.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*2+.4,a:.2+Math.random()*.8,s:.005+Math.random()*.03,ph:Math.random()*Math.PI*2});
+  // 1000+ 颗星：大小/频率/亮度各不相同
+  for(let i=0;i<1100;i++) sarr.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*2.4+.2,a:.15+Math.random()*.85,s:.003+Math.random()*.04,ph:Math.random()*Math.PI*2});
   animStarry();
 }
 function animStarry(){
@@ -3755,6 +3786,31 @@ function animStarry(){
   for(const s of sarr){ s.ph+=s.s; const a=s.a*(.5+.5*Math.sin(s.ph)); sctx.beginPath(); sctx.arc(s.x,s.y,s.r,0,Math.PI*2); sctx.fillStyle=`rgba(255,255,255,${a})`; sctx.fill(); }
   if(document.getElementById("starryPage").classList.contains("show")) requestAnimationFrame(animStarry);
 }
+
+// ===== 第二阶段：3➔2➔1 蜡烛倒计时 + 火苗 =====
+function startPhase2Countdown(){
+  const sp=document.getElementById("starryPage"); if(!sp) return;
+  // 创建倒计时容器
+  const wrap=document.createElement("div"); wrap.id="cdWrap";
+  wrap.style.cssText="position:absolute;z-index:2;display:flex;flex-direction:column;align-items:center;top:50%;left:50%;transform:translate(-50%,-50%)";
+  const numEl=document.createElement("div"); numEl.id="cdNum"; numEl.className="cd-big-num";
+  const flame=document.createElement("div"); flame.className="cd-flame";
+  wrap.appendChild(flame); wrap.appendChild(numEl); sp.appendChild(wrap);
+  let c=3;
+  function tick(){
+    numEl.textContent=c; numEl.style.animation="none";void numEl.offsetWidth;numEl.style.animation="cdNumIn .8s cubic-bezier(0.34,1.56,0.64,1)";
+    flame.style.animation="none";void flame.offsetWidth;flame.style.animation="cdFlameWiggle .25s ease-in-out infinite alternate";
+  }
+  tick();
+  const timer=setInterval(()=>{c--;if(c<=0){clearInterval(timer);numEl.textContent="0";numEl.style.animation="none";void numEl.offsetWidth;numEl.style.animation="cdNumIn .8s cubic-bezier(0.34,1.56,0.64,1)";setTimeout(()=>{flame.remove();numEl.remove();},500);return;}tick();},1000);
+}
+
+// 倒计时启动：星空画布加载 0.6s 后开始
+const origShowCakeGuide=showCakeGuide;
+showCakeGuide=function(){
+  origShowCakeGuide();
+  setTimeout(startPhase2Countdown,600);
+};
 </script>
 </body>
 </html>
