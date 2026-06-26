@@ -2189,73 +2189,6 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 }
 .guide-text.show { display: block; }
 @keyframes guideFade { 0%,100%{opacity:.5} 50%{opacity:.9} }
-.star-stage {
- display: none; position: fixed; inset: 0; z-index: 350;
- background: radial-gradient(ellipse at center, #0a0a1e 0%, #030310 60%, #000005 100%);
- justify-content: center; align-items: center; flex-direction: column;
- overflow: hidden;
-}
-.star-stage.show { display: flex; }
-#starCanvas { position: absolute; inset: 0; z-index: 0; }
-.countdown-big {
-  position: relative; z-index: 2; font-size: 160px; font-weight: bold;
-  color: #ffe8d0;
-  text-shadow: 0 0 20px rgba(255,180,120,.5), 0 0 60px rgba(255,150,100,.3);
-  animation: countIn .8s cubic-bezier(0.34,1.56,0.64,1); line-height: 1;
-  font-family: 'ZCOOL KuaiLe', cursive;
-}
-@keyframes countIn { 0%{transform:scale(3);opacity:0} 50%{transform:scale(.9)} 100%{transform:scale(1);opacity:1} }
-.countdown-flame {
- position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
- width: 22px; height: 34px; background: radial-gradient(ellipse at center, rgba(255,200,50,.9), rgba(255,100,20,.7));
- clip-path: polygon(50% 0%, 35% 60%, 20% 80%, 30% 100%, 50% 85%, 70% 100%, 80% 80%, 65% 60%);
- animation: flameDance .3s ease-in-out infinite alternate;
- box-shadow: 0 0 16px rgba(255,180,40,.6), 0 0 32px rgba(255,140,20,.3);
- z-index: 3;
-}
-@keyframes flameDance { 0%{transform:translateX(-50%) scaleY(1) rotate(-2deg)} 100%{transform:translateX(-50%) scaleY(1.2) rotate(2deg)} }
-.balloon-party {
- position: absolute; bottom: -120px; border-radius: 50%;
- animation: balloonRise var(--bdur) ease-in forwards;
- animation-delay: var(--bdelay);
- z-index: 1; pointer-events: none;
-}
-@keyframes balloonRise {
- 0%{transform:translateY(0) translateX(0) rotate(0);opacity:.9}
- 70%{opacity:.7}
- 100%{transform:translateY(-120vh) translateX(var(--bdrift)) rotate(var(--brot));opacity:0}
-}
-.balloon-string {
- position: absolute; bottom: -30px; left: 50%; width: 1px; height: 30px;
- background: rgba(255,255,255,.2); transform: translateX(-50%);
-}
-.firework-particle {
- position: absolute; border-radius: 50%;
- animation: fwBurst var(--fwdur) ease-out forwards;
- animation-delay: var(--fwdelay);
- opacity: 0; pointer-events: none; z-index: 1;
-}
-@keyframes fwBurst { 0%{opacity:0;transform:translate(0,0) scale(0)} 30%{opacity:1;transform:translate(var(--fwx),var(--fwy)) scale(1)} 100%{opacity:0;transform:translate(calc(var(--fwx)*2),calc(var(--fwy)*2 + 60px)) scale(0)} }
-.cake-particle {
- position: absolute; border-radius: 50%;
- animation: cakeForm 2s cubic-bezier(0.34,1.56,0.64,1) forwards;
- pointer-events: none; z-index: 2;
-}
-@keyframes cakeForm {
- 0%{opacity:0;transform:translate(var(--csx),var(--csy)) scale(0)}
- 60%{opacity:.9}
- 100%{opacity:1;transform:translate(var(--cex),var(--cey)) scale(1)}
-}
-.art-text {
- position: absolute; z-index: 3; pointer-events: none; opacity: 0;
- font-wei ght: bold; text-shadow: 0 0 10px rgba(255,200,150,.3), 0 0 30px rgba(255,160,100,.15);
- transition: opacity 1s;
-}
-.art-text.left { font-size: clamp(14px,3vw,22px); color: #ffccb8; left: 5%; top: 30%; fon t-family: 'ZCOOL KuaiLe', cursive; }
-.art-text.right { font-size: clamp(14px,3vw,22px); color: #ffd1c0; right: 5%; top: 55%; font-family: 'ZCOOL KuaiLe', cursive; text-align: right; }
-.art-text.top { font-size: clamp(18px,4vw,30px); color: #ffe8e0; top: 8%; left: 50%; transform: translateX(-50%); font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: 4px; }
-.art-text.show { opacity: 1; }
-
 /* ===== 答题弹窗系统 ===== */
 .quiz-overlay {
  position: fixed; inset: 0; z-index: 400; display: none;
@@ -2475,7 +2408,6 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  .cake-float-btn { top: 10px; left: 10px; width: 38px; height: 38px; font-size: 18px; }
  .guide-arrow { top: 22px; left: 52px; }
  .guide-text { top: 56px; left: 4px; font-size: 10px; padding: 6px 10px; }
- .countdown-big { font-size: 100px; }
  .watercolor-img { width: 55vw; max-width: 320px; opacity: .4; }
  .watercolor-img.secondary { width: 40vw; max-width: 220px; opacity: .25; }
  .watercolor-img.campus { width: 48vw; max-width: 280px; opacity: .35; }
@@ -2725,7 +2657,7 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  <audio id="bgMusic" loop preload="none" style="display:none"
  src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA="></audio>
  <!-- 蛋糕彩蛋按钮 + 引导 -->
- <button class="cake-float-btn" id="cakeBtn" onclick="startBirthdayTheatre()" title="生日惊喜">🎂</button>
+ <button class="cake-float-btn" id="cakeBtn" onclick="showCakeGuide()" title="生日惊喜">🎂</button>
  <div class="guide-arrow" id="guideArrow"></div>
  <div class="guide-text" id="guideText">✨ 观测到星轨异常，快戳我启动生日跃迁舱！✨</div>
 
@@ -2757,11 +2689,6 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 </div>
 
 <!-- 星空倒计时舞台 -->
-<div class="star-stage" id="starStage">
- <canvas id="starCanvas"></canvas>
-</div>
-
-<canvas class="firework-canvas" id="fireworkCanvas"></canvas>
 <div class="birthday-banner" id="birthdayBanner">✨ 小范，生日快乐！庆典舱已完全解锁！ ✨</div>
 
 <script>
@@ -3522,210 +3449,6 @@ function changeSkin(age,skinKey){
 
 // ===== 7月30日烟花大招 =====
 // ===== 生日惊喜戏剧场：引导 + 星空倒计时 + 气球 + 烟花 + 粒子蛋糕 =====
-function startBirthdayTheatre(){
- // 隐藏引导箭头
- document.getElementById('guideArrow').classList.remove('show');
- document.getElementById('guideText').classList.remove('show');
- document.getElementById('cakeBtn').style.display='none';
-
- // 首页淡出 → 切入星空舞台
- const ps=document.getElementById('planetStage');
- const ss=document.getElementById('starStage');
- ps.style.transition='opacity .5s'; ps.style.opacity='0';
-  setTimeout(()=>{ ps.style.display='none'; ss.style.display='flex'; ss.classList.add('show'); initStarCanvas(); startCountdown(3); },500);
-
-}
-
-// 星空 Canvas
-let starCtx, starArr=[];
-function initStarCanvas(){
- const c=document.getElementById('starCanvas'); c.width=window.innerWidth; c.height=window.innerHeight;
- starCtx=c.getContext('2d'); starArr=[];
- for(let i=0;i<300;i++) starArr.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*2+.5,a:.3+Math.random()*.7,speed:.005+Math.random()*.03,phase:Math.random()*Math.PI*2});
-}
-function drawStars(){
- if(!starCtx) return;
- starCtx.clearRect(0,0,starCtx.canvas.width,starCtx.canvas.height);
- for(const s of starArr){ s.phase+=s.speed; const a=s.a*(.5+.5*Math.sin(s.phase)); starCtx.beginPath(); starCtx.arc(s.x,s.y,s.r,0,Math.PI*2); starCtx.fillStyle=`rgba(255,255,255,${a})`; starCtx.fill(); }
- if(document.getElementById('starStage').classList.contains('show')) requestAnimationFrame(drawStars);
-}
-
-// 倒计时
-function startCountdown(n){
- const ss=document.getElementById('starStage');
- const old=ss.querySelector('.countdown-wrap');
- if(old) old.remove();
- const wrap=document.createElement('div'); wrap.className='countdown-wrap';
- wrap.style.cssText='position:relative;z-index:2;display:flex;flex-direction:column;align-items:center';
- const num=document.createElement('div'); num.className='countdown-big'; num.textContent=n;
- const flame=document.createElement('div'); flame.className='countdown-flame';
- flame.style.cssText='top:-40px;left:50%;transform:translateX(-50%);';
- wrap.appendChild(flame); wrap.appendChild(num); ss.appendChild(wrap);
- drawStars();
- let c=n;
- const timer=setInterval(()=>{
- c--;
- if(c<=0){ clearInterval(timer); num.textContent='0'; num.style.animation='none'; void num.offsetWidth; num.style.animation='countIn .8s cubic-bezier(0.34,1.56,0.64,1)'; flame.remove();
- setTimeout(()=>{ wrap.remove(); spawnBalloons(); },400);
- return;
- }
- num.textContent=c; num.style.animation='none'; void num.offsetWidth; num.style.animation='countIn .8s cubic-bezier(0.34,1.56,0.64,1)';
- },1000);
-}
-
-// 气球升空
-function spawnBalloons(){
- const ss=document.getElementById('starStage');
- const colors=['#f8b4c8','#b8d8f0','#e8c8f0','#f0d8b0','#c8f0d8','#f0c8c8','#d8c8f0','#f0e8c0'];
- for(let i=0;i<40;i++){
- const b=document.createElement('div'); b.className='balloon-party';
- const w=40+Math.random()*30; const h=w*1.25;
- const color=colors[Math.floor(Math.random()*colors.length)];
- b.style.cssText=`
- left:${5+Math.random()*90}%;width:${w}px;height:${h}px;
- background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.8),${color});
- --bdur:${3+Math.random()*4}s;--bdelay:${Math.random()*1.5}s;
- --bdrift:${(Math.random()-.5)*120}px;--brot:${(Math.random()-.5)*40}deg;
- `;
- // 气球绳
- const str=document.createElement('div'); str.className='balloon-string';
- b.appendChild(str); ss.appendChild(b);
- setTimeout(()=>b.remove(),6000);
- }
- // 烟花
- setTimeout(()=>{ for(let r=0;r<6;r++) setTimeout(()=>spawnFirework(ss),r*500); },1500);
- // 粒子蛋糕
- setTimeout(()=>spawnParticleCake(ss),3500);
-}
-
-// 烟花爆炸
-function spawnFirework(container){
- const cx=20+Math.random()*60; const cy=15+Math.random()*50;
- const colors=['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#c084fc','#fff','#ff9a9e'];
- const color=colors[Math.floor(Math.random()*colors.length)];
- for(let i=0;i<50;i++){
- const p=document.createElement('div'); p.className='firework-particle';
- const angle=Math.random()*Math.PI*2; const dist=30+Math.random()*100; const size=2+Math.random()*5;
- p.style.cssText=`
- left:${cx}%;top:${cy}%;width:${size}px;height:${size}px;background:${color};
- --fwx:${Math.cos(angle)*dist}px;--fwy:${Math.sin(angle)*dist}px;
- --fwdur:${.8+Math.random()*1.2}s;--fwdelay:${Math.random()*.3}s;
- box-shadow:0 0 ${size*2}px ${color};
- `;
- container.appendChild(p); setTimeout(()=>p.remove(),2000);
- }
-}
-
-// 粒子蛋糕形成
-function spawnParticleCake(container){
- const cx=container.clientWidth/2, cy=container.clientHeight/2;
- const colors=['#ffb3ba','#ffc3a0','#ffdfba','#ffffba','#baffc9','#bae1ff','#e8d1ff','#ffe8d0'];
- // 三层蛋糕形状粒子：底层(80px宽)、中层(60px宽)、顶层(40px宽)
- const layers=[
- {y:cy+40,w:90,h:30,n:80},
- {y:cy-10,w:70,h:25,n:60},
- {y:cy-50,w:50,h:20,n:40}
- ];
- layers.forEach((layer,li)=>{
- for(let i=0;i<layer.n;i++){
- const ang=Math.random()*Math.PI*2; const r=Math.random()*layer.w/2;
- const tx=cx+Math.cos(ang)*r; const ty=layer.y+Math.random()*layer.h-layer.h/2;
- const sx=cx+(Math.random()-.5)*300; const sy=cy+(Math.random()-.5)*400;
- const p=document.createElement('div'); p.className='cake-particle';
- const size=2+Math.random()*5;
- p.style.cssText=`
- width:${size}px;height:${size}px;background:${colors[Math.floor(Math.random()*colors.length)]};
- --csx:${sx}px;--csy:${sy}px;--cex:${tx}px;--cey:${ty}px;
- box-shadow:0 0 ${size*3}px rgba(255,200,150,.6);
- `;
- p.style.left='0'; p.style.top='0';
- container.appendChild(p);
- }
- });
- // 蜡烛火苗
- for(let i=0;i<15;i++){
- const p=document.createElement('div'); p.className='cake-particle';
- const tx=cx+(Math.random()-.5)*8; const ty=cy-65+(Math.random()-.5)*20;
- p.style.cssText=`
- width:${2+Math.random()*4}px;height:${2+Math.random()*4}px;background:#ffd700;
- --csx:${cx+(Math.random()-.5)*200}px;--csy:${cy-200+Math.random()*100}px;
- --cex:${tx}px;--cey:${ty}px;
- box-shadow:0 0 ${6+Math.random()*8}px rgba(255,220,50,.8),0 0 ${12+Math.random()*12}px rgba(255,180,20,.5);
- `;
- p.style.left='0'; p.style.top='0';
- container.appendChild(p);
- }
- // 2s后显示艺术字
- setTimeout(()=>showArtTexts(container),2200);
-}
-
-function showArtTexts(container){
- const texts=[
- {cls:'left',html:'美好的事物一定<br>会在新的一年<br>相约而至'},
- {cls:'right',html:'奔向<br>新的一岁！'},
- {cls:'top',html:'Happy Birthday'}
- ];
- texts.forEach(t=>{
- const el=document.createElement('div'); el.className='art-text '+t.cls;
- el.innerHTML=t.html; container.appendChild(el);
- setTimeout(()=>el.classList.add('show'),100);
- // 2s后淡出
- setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),1200); },3000);
- });
- // 5s后可重新体验
- setTimeout(()=>{
- const ss=document.getElementById('starStage');
- ss.classList.remove('show');
- document.getElementById('cakeBtn').style.display='flex';
- document.getElementById('planetStage').style.display='flex'; document.getElementById('planetStage').style.opacity='1';
- // 清理所有动态元素
- ss.querySelectorAll('.balloon-party,.firework-particle,.cake-particle,.art-text,.countdown-wrap').forEach(el=>el.remove());
- },8000);
-}
-
-// 显示引导（星球页面淡入后3秒出现）
-function showCakeGuide(){
- document.getElementById('guideArrow').classList.add('show');
- document.getElementById('guideText').classList.add('show');
-}
-
-function checkBirthdayFirework(){
- const now=new Date();
- if(now.getMonth()===6&&now.getDate()===30){
- const canvas=document.getElementById('fireworkCanvas');
- const banner=document.getElementById('birthdayBanner');
- setTimeout(()=>{ if(canvas) canvas.classList.add('show'); if(banner) banner.classList.add('show'); launchFireworks(); },2000);
- }
-}
-function launchFireworks(){
- const canvas=document.getElementById('fireworkCanvas'); if(!canvas) return;
- canvas.width=window.innerWidth; canvas.height=window.innerHeight;
- const ctx=canvas.getContext('2d');
- const particles=[];
- const colors=['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#ff6eb4','#fff','#c084fc'];
- function spawn(x,y){
- for(let i=0;i<40;i++){
- const angle=Math.random()*Math.PI*2; const speed=1+Math.random()*5;
- particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:1,decay:.008+Math.random()*.02,color:colors[Math.floor(Math.random()*colors.length)],size:1.5+Math.random()*3});
- }
- }
- function draw(){
- ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(0,0,canvas.width,canvas.height);
- for(let i=particles.length-1;i>=0;i--){
- const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=.04; p.life-=p.decay;
- if(p.life<=0){ particles.splice(i,1); continue; }
- ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
- ctx.fillStyle=p.color; ctx.globalAlpha=p.life; ctx.fill();
- }
- ctx.globalAlpha=1;
- if(particles.length>0) requestAnimationFrame(draw);
- }
- // 多轮烟花
- for(let r=0;r<6;r++){
- setTimeout(()=>{ spawn(Math.random()*canvas.width,Math.random()*canvas.height*.6); if(r===0) draw(); },r*600);
- }
-}
-checkBirthdayFirework();
 
 // ===== 初始化轨道粒子 =====
 // 背包暖金云朵
@@ -3964,7 +3687,6 @@ function transitionToPlanet(){
  bodyEl.classList.remove('status-countdown');
  bodyEl.classList.add('status-planet');
  // 3s后显示蛋糕引导
- setTimeout(showCakeGuide,3000);
  // 清理火箭状态
  const rocket=document.getElementById('rocketContainer');
  rocket.classList.remove('idle','launch');
@@ -4004,6 +3726,14 @@ function spawnSpeedLines(){
 }
 
 window.addEventListener('resize',()=>{if(document.getElementById('countdownOverlay').classList.contains('show'))initStarsCanvas();});
+
+// 蛋糕引导（暂作入口，后续分步实现）
+function showCakeGuide(){
+  const arrow=document.getElementById('guideArrow');
+  const text=document.getElementById('guideText');
+  if(arrow) arrow.classList.toggle('show');
+  if(text) text.classList.toggle('show');
+}
 </script>
 </body>
 </html>
