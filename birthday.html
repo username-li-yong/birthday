@@ -2731,13 +2731,6 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  <div class="guide-arrow" id="guideArrow"></div>
  <div class="guide-text" id="guideText">✨ 观测到星轨异常，快戳我启动生日跃迁舱！✨</div>
 
- <!-- 星空倒计时舞台 -->
- <div class="star-stage" id="starStage">
- <canvas id="starCanvas"></canvas>
- </div>
-
- <canvas class="firework-canvas" id="fireworkCanvas"></canvas>
- <div class="birthday-banner" id="birthdayBanner">✨ 小范，生日快乐！庆典舱已完全解锁！ ✨</div>
  <!-- 连错帮助弹窗 -->
  <div class="help-popup" id="helpPopup">
  <div class="help-icon">📡</div>
@@ -2764,6 +2757,14 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  </div>
  </div>
 </div>
+
+<!-- 星空倒计时舞台 -->
+<div class="star-stage" id="starStage">
+ <canvas id="starCanvas"></canvas>
+</div>
+
+<canvas class="firework-canvas" id="fireworkCanvas"></canvas>
+<div class="birthday-banner" id="birthdayBanner">✨ 小范，生日快乐！庆典舱已完全解锁！ ✨</div>
 
 <script>
 const bodyEl = document.getElementById('bodyEl');
@@ -3533,8 +3534,8 @@ function startBirthdayTheatre(){
  const ps=document.getElementById('planetStage');
  const ss=document.getElementById('starStage');
  ps.style.transition='opacity .5s'; ps.style.opacity='0';
- setTimeout(()=>{ ps.style.display='none'; ss.classList.add('show'); initStarCanvas(); },500);
- setTimeout(()=>{ startCountdown(3); },800);
+  setTimeout(()=>{ ps.style.display='none'; ss.style.display='flex'; ss.classList.add('show'); initStarCanvas(); startCountdown(3); },500);
+
 }
 
 // 星空 Canvas
