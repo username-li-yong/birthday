@@ -3765,19 +3765,23 @@ function spawnSpeedLines(){
 
 window.addEventListener('resize',()=>{if(document.getElementById('countdownOverlay').classList.contains('show'))initStarsCanvas();});
 
-// 蛋糕引导入口：主页淡出 → 星空画布
+// 蛋糕引导入口：主页淡出 → 星空画布 → 自动启动倒计时
 function showCakeGuide(){
   const ps=document.getElementById("planetStage"); if(!ps) return;
   const sp=document.getElementById("starryPage"); if(!sp) return;
   document.getElementById("guideArrow").classList.remove("show");
   document.getElementById("guideText").classList.remove("show");
   ps.style.transition="opacity .5s"; ps.style.opacity="0";
-  setTimeout(()=>{ ps.style.display="none"; sp.classList.add("show"); initStarryCanvas(); },500);
+  setTimeout(()=>{
+    ps.style.display="none"; sp.classList.add("show"); initStarryCanvas();
+    // 星空登场 0.6s 后自动启动 3→2→1 倒计时
+    setTimeout(startPhase2Countdown,600);
+  },500);
 }
+
 let sctx,sarr=[];
 function initStarryCanvas(){
   const c=document.getElementById("starryCanvas"); c.width=window.innerWidth; c.height=window.innerHeight; sctx=c.getContext("2d"); sarr=[];
-  // 1000+ 颗星：大小/频率/亮度各不相同
   for(let i=0;i<1100;i++) sarr.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*2.4+.2,a:.15+Math.random()*.85,s:.003+Math.random()*.04,ph:Math.random()*Math.PI*2});
   animStarry();
 }
@@ -3790,10 +3794,9 @@ function animStarry(){
 // ===== 第二阶段：3➔2➔1 蜡烛倒计时 + 火苗 =====
 function startPhase2Countdown(){
   const sp=document.getElementById("starryPage"); if(!sp) return;
-  // 创建倒计时容器
-  const wrap=document.createElement("div"); wrap.id="cdWrap";
-  wrap.style.cssText="position:absolute;z-index:2;display:flex;flex-direction:column;align-items:center;top:50%;left:50%;transform:translate(-50%,-50%)";
-  const numEl=document.createElement("div"); numEl.id="cdNum"; numEl.className="cd-big-num";
+  const wrap=document.createElement("div");
+  wrap.style.cssText="position:absolute;z-index:10;display:flex;flex-direction:column;align-items:center;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none";
+  const numEl=document.createElement("div"); numEl.className="cd-big-num";
   const flame=document.createElement("div"); flame.className="cd-flame";
   wrap.appendChild(flame); wrap.appendChild(numEl); sp.appendChild(wrap);
   let c=3;
@@ -3802,15 +3805,8 @@ function startPhase2Countdown(){
     flame.style.animation="none";void flame.offsetWidth;flame.style.animation="cdFlameWiggle .25s ease-in-out infinite alternate";
   }
   tick();
-  const timer=setInterval(()=>{c--;if(c<=0){clearInterval(timer);numEl.textContent="0";numEl.style.animation="none";void numEl.offsetWidth;numEl.style.animation="cdNumIn .8s cubic-bezier(0.34,1.56,0.64,1)";setTimeout(()=>{flame.remove();numEl.remove();},500);return;}tick();},1000);
+  const timer=setInterval(()=>{c--;if(c<=0){clearInterval(timer);numEl.textContent="0";numEl.style.animation="none";void numEl.offsetWidth;numEl.style.animation="cdNumIn .8s cubic-bezier(0.34,1.56,0.64,1)";setTimeout(()=>{wrap.remove();},600);return;}tick();},1000);
 }
-
-// 倒计时启动：星空画布加载 0.6s 后开始
-const origShowCakeGuide=showCakeGuide;
-showCakeGuide=function(){
-  origShowCakeGuide();
-  setTimeout(startPhase2Countdown,600);
-};
 </script>
 </body>
 </html>
