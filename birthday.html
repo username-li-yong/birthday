@@ -6,6 +6,9 @@
 <title>生日快乐</title>
 <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -2190,6 +2193,17 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 .guide-text.show { display: block; }
 @keyframes guideFade { 0%,100%{opacity:.5} 50%{opacity:.9} }
 
+/* ===== 手势引导提示条 ===== */
+.gesture-bar {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 360;
+  background: rgba(0,0,0,.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  color: rgba(255,255,255,.75); padding: 10px 24px; border-radius: 24px;
+  font-size: 13px; font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: 1.5px;
+  border: 1px solid rgba(255,255,255,.12); pointer-events: none;
+  transition: opacity .5s; opacity: 0;
+}
+.gesture-bar.show { opacity: 1; }
+
 /* ===== 答题弹窗系统 ===== */
 .quiz-overlay {
  position: fixed; inset: 0; z-index: 400; display: none;
@@ -3841,129 +3855,143 @@ function showCakeGuide(){
   },1000);
 }
 
-// ===== 阶段二+三：气球物理 + 满屏流光烟花 + 粒子蛋糕 + 祝福字 (Canvas 状态机) =====
+// ===== 阶段二+三：气球 + 烟花 + Three.js 粒子蛋糕/球体 + MediaPipe 手势 =====
 function launchPhase3(overlay,ps){
   const C=document.createElement("canvas"); C.width=window.innerWidth; C.height=window.innerHeight;
   C.style.cssText="position:absolute;inset:0;z-index:5;pointer-events:none";
   overlay.appendChild(C); const ctx=C.getContext("2d");
 
-  // ===== 三级幕状态机 =====
   let currentStage="balloons", frame=0;
-  let balloons=[], particles=[], fwTimer=null, artEls=[];
+  let balloons=[], particles=[], fwTimer=null;
 
   const mc=['#FFB7B2','#FFDAC1','#E2F0CB','#E1BEE7','#B5E2FA','#ffcc80','#f8bbd0','#c8e6c9','#ffe082','#d1c4e9','#ffab91','#80deea'];
   const neonColors=['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#c084fc','#fff','#ff9a9e','#ffb347','#ff6eb4','#0ff','#f0f'];
 
-  // ---- 35个物理气球 ----
-  for(let i=0;i<35;i++){
-    balloons.push({
-      x:20+Math.random()*(C.width-40),y:C.height+120,vy:-(1.2+Math.random()*1.8),
-      ph:Math.random()*Math.PI*2,freq:.008+Math.random()*.025,
-      color:mc[Math.floor(Math.random()*mc.length)],sz:18+Math.random()*18,delay:Math.floor(Math.random()*90)
-    });
-  }
+  for(let i=0;i<35;i++){balloons.push({x:20+Math.random()*(C.width-40),y:C.height+120,vy:-(1.2+Math.random()*1.8),ph:Math.random()*Math.PI*2,freq:.008+Math.random()*.025,color:mc[Math.floor(Math.random()*mc.length)],sz:18+Math.random()*18,delay:Math.floor(Math.random()*90)});}
+  function drawBalloon(b){if(frame<b.delay)return;const bx=b.x+Math.sin(b.ph)*.8,W=40,H=50;ctx.save();ctx.globalAlpha=.85;ctx.beginPath();ctx.ellipse(bx,b.y,W/2,H/2,0,0,Math.PI*2);ctx.fillStyle=b.color;ctx.fill();const ky=b.y+H/2;ctx.beginPath();ctx.moveTo(bx,ky);ctx.lineTo(bx-4,ky+6);ctx.lineTo(bx+4,ky+6);ctx.closePath();ctx.fillStyle=b.color;ctx.globalAlpha=.6;ctx.fill();ctx.globalAlpha=.45;ctx.strokeStyle=b.color;ctx.lineWidth=1;const sw=Math.sin(b.ph*1.8+frame*.03)*2.5,se=Math.sin(b.ph*1.4+frame*.025)*4;ctx.beginPath();ctx.moveTo(bx,ky+6);ctx.quadraticCurveTo(bx+sw,ky+6+22,bx+se,ky+61);ctx.stroke();ctx.restore();}
+  function spawnFirework(cx,cy){const color=neonColors[Math.floor(Math.random()*neonColors.length)];for(let i=0;i<150;i++){const a=Math.random()*Math.PI*2,spd=2+Math.random()*6;particles.push({x:cx,y:cy,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,life:1,decay:.005+Math.random()*.015,color,sz:1.5+Math.random()*3.5});}setTimeout(()=>{for(let i=0;i<30;i++){const a2=Math.random()*Math.PI*2,d2=15+Math.random()*35;particles.push({x:cx+Math.cos(a2)*d2,y:cy+Math.sin(a2)*d2,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2-1,life:.4,decay:.03,color:"#fff",sz:.5+Math.random()*2});}},150);}
+  function initFireworks(){currentStage="fireworks";frame=0;fwTimer=setInterval(()=>{spawnFirework(80+Math.random()*(C.width-160),60+Math.random()*C.height*.45);},150);setTimeout(()=>{clearInterval(fwTimer);},3000);}
 
-  function drawBalloon(b){
-    if(frame<b.delay) return;
-    const bx=b.x+Math.sin(b.ph)*.8,W=40,H=50;
-    ctx.save();ctx.globalAlpha=.85;
-    ctx.beginPath();ctx.ellipse(bx,b.y,W/2,H/2,0,0,Math.PI*2);ctx.fillStyle=b.color;ctx.fill();
-    const ky=b.y+H/2;
-    ctx.beginPath();ctx.moveTo(bx,ky);ctx.lineTo(bx-4,ky+6);ctx.lineTo(bx+4,ky+6);
-    ctx.closePath();ctx.fillStyle=b.color;ctx.globalAlpha=.6;ctx.fill();
-    ctx.globalAlpha=.45;ctx.strokeStyle=b.color;ctx.lineWidth=1;
-    const sw=Math.sin(b.ph*1.8+frame*.03)*2.5,se=Math.sin(b.ph*1.4+frame*.025)*4;
-    ctx.beginPath();ctx.moveTo(bx,ky+6);
-    ctx.quadraticCurveTo(bx+sw,ky+6+22,bx+se,ky+61);
-    ctx.stroke();ctx.restore();
-  }
-
-  // ---- 烟花自动爆弹器 ----
-  function spawnFirework(cx,cy){
-    const color=neonColors[Math.floor(Math.random()*neonColors.length)];
-    for(let i=0;i<150;i++){
-      const a=Math.random()*Math.PI*2,spd=2+Math.random()*6;
-      particles.push({x:cx,y:cy,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,life:1,decay:.005+Math.random()*.015,color,sz:1.5+Math.random()*3.5});
-    }
-    // 二次微闪
-    setTimeout(()=>{
-      for(let i=0;i<30;i++){
-        const a2=Math.random()*Math.PI*2,d2=15+Math.random()*35;
-        particles.push({x:cx+Math.cos(a2)*d2,y:cy+Math.sin(a2)*d2,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2-1,life:.4,decay:.03,color:"#fff",sz:.5+Math.random()*2});
-      }
-    },150);
-  }
-
-  function initFireworks(){
-    currentStage="fireworks"; frame=0;
-    // 3秒内每150ms一发
-    fwTimer=setInterval(()=>{
-      spawnFirework(80+Math.random()*(C.width-160),60+Math.random()*C.height*.45);
-    },150);
-    setTimeout(()=>{clearInterval(fwTimer);},3000);
-  }
-
-  // ---- 主渲染循环 ----
-  function tick(){
-    frame++;
-    // 气球阶段 clearRect；烟花阶段用流光拖尾
-    if(currentStage==="balloons"){ctx.clearRect(0,0,C.width,C.height);}
-    else {ctx.fillStyle="rgba(0,0,0,.12)";ctx.fillRect(0,0,C.width,C.height);}
-
-    // >> STAGE 1: 气球
-    if(currentStage==="balloons"){
-      let alive=0;
-      for(const b of balloons){
-        if(frame<b.delay){alive++;continue;}
-        b.ph+=b.freq;b.x+=Math.sin(b.ph)*.55;b.y+=b.vy;
-        if(b.y>-150) alive++;
-        drawBalloon(b);
-      }
-      // 气球全部飞出 → 强行切烟花
-      if(alive===0&&frame>200){initFireworks();}
-    }
-
-    // >> STAGE 2: 烟花
-    if(currentStage==="fireworks"){
-      for(let i=particles.length-1;i>=0;i--){
-        const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.life-=p.decay;
-        if(p.life<=0){particles.splice(i,1);continue;}
-        ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);
-        ctx.fillStyle=p.color;ctx.globalAlpha=p.life;ctx.fill();
-      }
-      ctx.globalAlpha=1;
-      // 烟花爆完 → 切蛋糕
-      if(particles.length===0&&frame>600){currentStage="cake";frame=0;}
-    }
-
-    // >> STAGE 3: 粒子蛋糕
-    if(currentStage==="cake"){
-      const cx=C.width/2,cy=C.height/2;
-      const layers=[{y:cy+40,w:90,h:30,n:55},{y:cy-10,w:70,h:25,n:40},{y:cy-50,w:50,h:20,n:28}];
-      layers.forEach(l=>{for(let i=0;i<Math.min(l.n,frame*.6);i++){
-        const ang=Math.random()*Math.PI*2,r=Math.random()*l.w/2;
-        ctx.beginPath();ctx.arc(cx+Math.cos(ang)*r,l.y+Math.random()*l.h-l.h/2,2+Math.random()*4,0,Math.PI*2);
-        ctx.fillStyle=mc[Math.floor(Math.random()*mc.length)];ctx.globalAlpha=.8;ctx.fill();
-      }});
-      for(let i=0;i<12;i++){
-        ctx.beginPath();ctx.arc(cx+(Math.random()-.5)*10,cy-68+(Math.random()-.5)*22,1.5+Math.random()*4,0,Math.PI*2);
-        ctx.fillStyle="#ffd700";ctx.globalAlpha=.85;ctx.shadowColor="rgba(255,200,50,.8)";ctx.shadowBlur=6;ctx.fill();
-      }
-      ctx.shadowBlur=0;ctx.globalAlpha=1;
-      if(frame>120&&artEls.length===0) showBlessings();
-    }
-
-    if(frame<900&&currentStage!=="done") requestAnimationFrame(tick);
-  }
-
-  function showBlessings(){
-    const ts=[{html:"美好的事物一定<br>会在新的一年<br>相约而至",s:"left:5%;top:30%;color:#ffccb8"},{html:"奔向<br>新的一岁！",s:"right:5%;top:55%;color:#ffd1c0;text-align:right"},{html:"Happy Birthday",s:"top:8%;left:50%;transform:translateX(-50%);color:#ffe8e0;letter-spacing:4px"}];
-    ts.forEach(t=>{const el=document.createElement("div");el.innerHTML=t.html;el.style.cssText=`position:absolute;${t.s};font-size:clamp(14px,3vw,22px);font-family:'ZCOOL KuaiLe',cursive;z-index:6;pointer-events:none;text-shadow:0 0 10px rgba(255,200,150,.3);opacity:0;transition:opacity 1s`;overlay.appendChild(el);setTimeout(()=>el.style.opacity="1",100);setTimeout(()=>el.style.opacity="0",3000);});
-    setTimeout(()=>{currentStage="done";},4000);
-    setTimeout(()=>{overlay.remove();ps.style.display="flex";ps.style.opacity="1";},6000);
-  }
-
+  function tick(){frame++;if(currentStage==="balloons"){ctx.clearRect(0,0,C.width,C.height);let alive=0;for(const b of balloons){if(frame<b.delay){alive++;continue;}b.ph+=b.freq;b.x+=Math.sin(b.ph)*.55;b.y+=b.vy;if(b.y>-150)alive++;drawBalloon(b);}if(alive===0&&frame>200){initFireworks();}}
+    if(currentStage==="fireworks"){ctx.fillStyle="rgba(0,0,0,.12)";ctx.fillRect(0,0,C.width,C.height);for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.life-=p.decay;if(p.life<=0){particles.splice(i,1);continue;}ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);ctx.fillStyle=p.color;ctx.globalAlpha=p.life;ctx.fill();}ctx.globalAlpha=1;if(particles.length===0&&frame>600){clearInterval(fwTimer);initThreeJSStage(overlay,ps);return;}}
+    if(currentStage==="balloons"||currentStage==="fireworks") requestAnimationFrame(tick);}
   tick();
+}
+
+// ===== Three.js 粒子舞台 + MediaPipe 手势 =====
+function initThreeJSStage(overlay,ps){
+  try{
+  const W=window.innerWidth,H=window.innerHeight;
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  renderer.setSize(W,H);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.domElement.style.cssText="position:absolute;inset:0;z-index:6;";
+  overlay.appendChild(renderer.domElement);
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(60,W/H,.1,1000);
+  camera.position.z=300;
+  const group=new THREE.Group();scene.add(group);
+
+  // ===== 构建两套粒子坐标 =====
+  const N=2500;
+  const posA=[],posB=[],colors=[];
+  const cPal=['#8899cc','#aabbee','#c8a0e0','#b0c4f0','#d4b8f0','#fff8e0','#cca0d0','#99bbdd','#e8d8ff','#ffe8d0'];
+  for(let i=0;i<N;i++){
+    const c=cPal[Math.floor(Math.random()*cPal.length)];colors.push(c);
+
+    // 状态A：三层蛋糕 + 顶部星星
+    const layer=Math.random()<.08?3:(Math.random()<.4?2:(Math.random()<.6?1:0));
+    let ax,ay,az;
+    if(layer===3){ // 顶部五角星
+      const sa=Math.random()*Math.PI*2,sr=8+Math.random()*14;
+      ax=Math.cos(sa)*sr;ay=Math.sin(sa)*sr*.5-70;az=0;
+    }else{
+      const r=(layer===0?42:layer===1?32:22),h=(layer===0?25:layer===1?-15:-40);
+      const a=Math.random()*Math.PI*2,rr=Math.random()*r;
+      ax=Math.cos(a)*rr;ay=h+Math.random()*8-4;az=Math.sin(a)*rr*.6;
+    }
+    posA.push({x:ax,y:ay,z:az});
+
+    // 状态B：球壳
+    const phi=Math.acos(2*Math.random()-1),theta=Math.random()*Math.PI*2,R=180+Math.random()*30;
+    posB.push({x:R*Math.sin(phi)*Math.cos(theta),y:R*Math.cos(phi)*1.2,z:R*Math.sin(phi)*Math.sin(theta)});
+  }
+
+  // 粒子几何体
+  const geo=new THREE.BufferGeometry();
+  const verts=new Float32Array(N*3),cols=new Float32Array(N*3),sizes=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    verts[i*3]=posA[i].x;verts[i*3+1]=posA[i].y;verts[i*3+2]=posA[i].z;
+    const hex=parseInt(colors[i].replace('#',''),16);
+    cols[i*3]=((hex>>16)&255)/255;cols[i*3+1]=((hex>>8)&255)/255;cols[i*3+2]=(hex&255)/255;
+    sizes[i]=1.5+Math.random()*3;
+  }
+  geo.setAttribute('position',new THREE.BufferAttribute(verts,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(cols,3));
+  geo.setAttribute('size',new THREE.BufferAttribute(sizes,1));
+
+  const mat=new THREE.PointsMaterial({size:.45,vertexColors:true,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.85});
+  const points=new THREE.Points(geo,mat);group.add(points);
+
+  let progress=0,target=0; // 0=蛋糕, 1=球体
+
+  // ===== MediaPipe 启动（失败则降级为触屏） =====
+  function startTouchFallback(){
+    const bar=document.createElement("div");bar.className="gesture-bar show";
+    bar.textContent="👆 点击屏幕膨胀星海 | 再次点击凝聚蛋糕 | 长按并滑动可旋转";
+    overlay.appendChild(bar);
+    let touchDown=false,touchId=null;
+    overlay.addEventListener('pointerdown',e=>{touchDown=true;touchId=e.pointerId;target=target<.5?1:0;});
+    overlay.addEventListener('pointerup',()=>{touchDown=false;});
+    overlay.addEventListener('pointermove',e=>{if(touchDown&&target>.5){group.rotation.y+=(e.movementX||.5)*.005;group.rotation.x+=(e.movementY||0)*.003;}});
+  }
+
+  // MediaPipe Hands
+  let hands=null,cameraStream=null;
+  try{
+    hands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`});
+    hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.7,minTrackingConfidence:.5});
+    hands.onResults(results=>{
+      if(results.multiHandLandmarks&&results.multiHandLandmarks.length>0){
+        const lm=results.multiHandLandmarks[0];
+        // 手掌开合度：指尖到指根平均距离
+        const tips=[4,8,12,16,20],bases=[2,5,9,13,17];let sumDist=0;
+        for(let i=0;i<5;i++){const dx=lm[tips[i]].x-lm[bases[i]].x,dy=lm[tips[i]].y-lm[bases[i]].y,dz=lm[tips[i]].z-lm[bases[i]].z;sumDist+=Math.sqrt(dx*dx+dy*dy+dz*dz);}
+        const openness=Math.min(1,sumDist/1.2);
+        target=openness>.3?1:0; // 张开→球体，握拳→蛋糕
+        if(target>.5){ // 球体时可旋转
+          const dx=(lm[9].x-.5)*2;group.rotation.y+=dx*.008;
+        }
+      }
+    });
+    // 启动摄像头
+    const video=document.createElement('video');video.style.display='none';document.body.appendChild(video);
+    const cam=new Camera(video,{onFrame:async()=>{await hands.send({image:video});},width:320,height:240});
+    cam.start().then(()=>{cameraStream=video.srcObject;}).catch(()=>{startTouchFallback();});
+
+    const bar=document.createElement("div");bar.className="gesture-bar show";
+    bar.textContent="💡 伸出掌心：膨胀星海 | 左右挥手：转动星空 | 紧握拳头：凝聚蛋糕";
+    if(typeof Hands==="undefined"){bar.textContent="⚠️ 手势库加载中，已启用触屏备选";startTouchFallback();}else overlay.appendChild(bar);
+  }catch(e){startTouchFallback();}
+
+  // ===== 渲染循环 =====
+  function render(){
+    progress+=(target-progress)*.08;
+    const p=progress;
+    const pos=geo.attributes.position.array;
+    for(let i=0;i<N;i++){
+      const a=posA[i],b=posB[i];
+      const noise=(Math.random()-.5)*p*3;
+      pos[i*3]=a.x+(b.x-a.x)*p+noise;
+      pos[i*3+1]=a.y+(b.y-a.y)*p+noise*.7;
+      pos[i*3+2]=a.z+(b.z-a.z)*p+noise*.5;
+    }
+    geo.attributes.position.needsUpdate=true;
+    group.rotation.y+=p*.002;
+    renderer.render(scene,camera);
+    if(overlay.parentNode) requestAnimationFrame(render);
+  }
+  render();
+  }catch(e){console.log(e);}
 }
 </script>
 </body>
