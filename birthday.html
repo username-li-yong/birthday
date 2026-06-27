@@ -3767,7 +3767,7 @@ function launchPhase3(overlay,ps){
   overlay.appendChild(C); const ctx=C.getContext("2d");
 
   let balloons=[], particles=[], phase="balloons", frame=0, cakeParts=[], artEls=[];
-  const mc=['#f8b4c8','#c8d0f0','#e8c8f0','#f0d8b0','#c8f0d8','#f0c8c8','#d8c8f0','#f0e8c0','#ffd1dc','#bae1ff','#ffdfba','#e8d1ff'];
+  const mc=['#FFB7B2','#FFDAC1','#E2F0CB','#E1BEE7','#B5E2FA','#ffcc80','#f8bbd0','#c8e6c9','#ffe082','#d1c4e9','#ffab91','#80deea'];
 
   // 35个物理气球
   for(let i=0;i<35;i++){
@@ -3778,54 +3778,35 @@ function launchPhase3(overlay,ps){
     });
   }
 
-  // 水滴形气球绘制（贝塞尔 + 高光月牙 + 气嘴打结 + 波浪飘带）
+  // 马卡龙气球绘制（椭圆 + 三角结 + 细飘带）
   function drawBalloon(b){
     if(frame<b.delay) return;
-    const bx=b.x+Math.sin(b.ph)*.8; // 正弦波摆动后的 X
-    const W=b.sz*1.05, H=b.sz*1.45; // 宽高比：上胖下收的水滴形
-    const ty=b.y-H*.5, by=b.y+H*.5; // top/bottom Y
-    const hy=b.y+H*.28; // 最宽处 Y
+    const bx=b.x+Math.sin(b.ph)*.8;
+    const W=40, H=50; // 椭圆宽高
+    ctx.save(); ctx.globalAlpha=.85;
 
-    ctx.save(); ctx.globalAlpha=.82;
-
-    // 水滴/卵形轮廓
+    // 气球身体：拉伸椭圆
     ctx.beginPath();
-    ctx.moveTo(bx,ty+H*.15);
-    // 左上弧→最宽左
-    ctx.bezierCurveTo(bx-W*.9,ty+H*.1, bx-W,hy-H*.15, bx-W*.85,hy+H*.1);
-    // 左宽→底尖
-    ctx.bezierCurveTo(bx-W*.6,by-H*.25, bx-W*.15,by-H*.1, bx,by);
-    // 底尖→右宽
-    ctx.bezierCurveTo(bx+W*.15,by-H*.1, bx+W*.6,by-H*.25, bx+W*.85,hy+H*.1);
-    // 右宽→右上弧
-    ctx.bezierCurveTo(bx+W,hy-H*.15, bx+W*.9,ty+H*.1, bx,ty+H*.15);
+    ctx.ellipse(bx, b.y, W/2, H/2, 0, 0, Math.PI*2);
+    ctx.fillStyle=b.color; ctx.fill();
+
+    // 气嘴扎口：等腰小三角
+    const knotY=b.y+H/2;
+    ctx.beginPath();
+    ctx.moveTo(bx, knotY);
+    ctx.lineTo(bx-4, knotY+6);
+    ctx.lineTo(bx+4, knotY+6);
     ctx.closePath();
+    ctx.fillStyle=b.color; ctx.globalAlpha=.6; ctx.fill();
 
-    // 清透渐变填充
-    const g=ctx.createLinearGradient(bx-W*.4,ty-H*.1,bx+W*.4,by+H*.15);
-    g.addColorStop(0,b.color); g.addColorStop(.45,"rgba(255,255,255,.25)"); g.addColorStop(1,b.color);
-    ctx.fillStyle=g; ctx.fill();
-
-    // 高光月牙（左上）
+    // 飘带：细线 + 轻柔正弦弯曲
+    const rLen=55;
+    const sway=Math.sin(b.ph*1.8+frame*.03)*2.5;
+    const swayEnd=Math.sin(b.ph*1.4+frame*.025)*4;
+    ctx.globalAlpha=.45; ctx.strokeStyle=b.color; ctx.lineWidth=1;
     ctx.beginPath();
-    ctx.ellipse(bx-W*.22,ty+H*.35,W*.12,H*.18,-.4,0,Math.PI*2);
-    ctx.fillStyle="rgba(255,255,255,.35)"; ctx.fill();
-
-    // 气嘴结（等腰小三角）
-    ctx.beginPath();
-    ctx.moveTo(bx,by);
-    ctx.lineTo(bx-3.5,by+6);
-    ctx.lineTo(bx+3.5,by+6);
-    ctx.closePath();
-    ctx.fillStyle="rgba(130,100,80,.5)"; ctx.fill();
-
-    // 飘带（平滑贝塞尔 + 正弦滞后摆动）
-    const rLen=22+Math.random()*14;
-    const swayLag=Math.sin(b.ph*2.2+frame*.04)*3.5;
-    const swayFar=Math.sin(b.ph*1.6+frame*.03)*5;
-    ctx.beginPath(); ctx.strokeStyle=b.color; ctx.lineWidth=1.3; ctx.globalAlpha=.45;
-    ctx.moveTo(bx,by+6);
-    ctx.quadraticCurveTo(bx+swayLag, by+6+rLen*.35, bx+swayFar, by+6+rLen);
+    ctx.moveTo(bx, knotY+6);
+    ctx.quadraticCurveTo(bx+sway, knotY+6+rLen*.4, bx+swayEnd, knotY+6+rLen);
     ctx.stroke();
 
     ctx.restore();
