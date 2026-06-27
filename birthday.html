@@ -3906,8 +3906,9 @@ function launchPhase3(overlay,ps){
   // ---- 主渲染循环 ----
   function tick(){
     frame++;
-    // 流光拖尾：半透明黑覆写，不清屏
-    ctx.fillStyle="rgba(0,0,0,.12)";ctx.fillRect(0,0,C.width,C.height);
+    // 气球阶段 clearRect；烟花阶段用流光拖尾
+    if(currentStage==="balloons"){ctx.clearRect(0,0,C.width,C.height);}
+    else {ctx.fillStyle="rgba(0,0,0,.12)";ctx.fillRect(0,0,C.width,C.height);}
 
     // >> STAGE 1: 气球
     if(currentStage==="balloons"){
