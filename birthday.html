@@ -3855,6 +3855,8 @@ function showCakeGuide(){
 
 // ===== 阶段二+三：气球 + 烟花 + Three.js 粒子蛋糕/球体 + MediaPipe 手势 =====
 function launchPhase3(overlay,ps){
+  // 重置 overlay 样式：去掉 countdown 阶段的 flex 居中，改为绝对定位子元素全屏铺满
+  overlay.style.justifyContent="flex-start"; overlay.style.alignItems="flex-start";
   const C=document.createElement("canvas"); C.width=window.innerWidth; C.height=window.innerHeight;
   C.style.cssText="position:absolute;inset:0;z-index:5;pointer-events:none";
   overlay.appendChild(C); const ctx=C.getContext("2d");
@@ -3907,10 +3909,21 @@ function initThreeJSStage(overlay,ps){
     geo.setAttribute('color',new THREE.BufferAttribute(cl,3));
     const mat=new THREE.PointsMaterial({size:.5,vertexColors:true,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.85});
     const pts=new THREE.Points(geo,mat);group.add(pts);
+    // 确保粒子群居屏幕中心
+    group.position.set(0,0,0); camera.position.set(0,0,300); camera.lookAt(0,0,0);
+
     let progress=0,target=0;
     const bar=document.createElement("div");bar.className="gesture-bar show";
     bar.textContent="👆 点击屏幕：蛋糕 ⇄ 星海球体 | 左右滑动：旋转视角";
     overlay.appendChild(bar);
+    // 返回星球按钮
+    const backBtn=document.createElement("button");
+    backBtn.textContent="🏠 返回星球";backBtn.style.cssText="position:fixed;bottom:80px;right:20px;z-index:400;padding:10px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.5);color:rgba(255,255,255,.75);font-size:14px;cursor:pointer;font-family:'ZCOOL KuaiLe',cursive;backdrop-filter:blur(8px);transition:all .3s";
+    backBtn.onmouseenter=()=>backBtn.style.background="rgba(255,255,255,.15)";
+    backBtn.onmouseleave=()=>backBtn.style.background="rgba(0,0,0,.5)";
+    backBtn.onclick=()=>{closeOverlay();backBtn.remove();bar.remove();};
+    overlay.appendChild(backBtn);
+
     let down=false;
     overlay.addEventListener('pointerdown',e=>{down=true;target=target<.5?1:0;});
     overlay.addEventListener('pointerup',()=>{down=false;});
