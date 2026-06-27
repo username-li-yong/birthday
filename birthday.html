@@ -3868,10 +3868,10 @@ function launchPhase3(overlay,ps){
   for(let i=0;i<35;i++){balloons.push({x:20+Math.random()*(C.width-40),y:C.height+120,vy:-(1.2+Math.random()*1.8),ph:Math.random()*Math.PI*2,freq:.008+Math.random()*.025,color:mc[Math.floor(Math.random()*mc.length)],sz:18+Math.random()*18,delay:Math.floor(Math.random()*90)});}
   function drawBalloon(b){if(frame<b.delay)return;const bx=b.x+Math.sin(b.ph)*.8,W=40,H=50;ctx.save();ctx.globalAlpha=.85;ctx.beginPath();ctx.ellipse(bx,b.y,W/2,H/2,0,0,Math.PI*2);ctx.fillStyle=b.color;ctx.fill();const ky=b.y+H/2;ctx.beginPath();ctx.moveTo(bx,ky);ctx.lineTo(bx-4,ky+6);ctx.lineTo(bx+4,ky+6);ctx.closePath();ctx.fillStyle=b.color;ctx.globalAlpha=.6;ctx.fill();ctx.globalAlpha=.45;ctx.strokeStyle=b.color;ctx.lineWidth=1;const sw=Math.sin(b.ph*1.8+frame*.03)*2.5,se=Math.sin(b.ph*1.4+frame*.025)*4;ctx.beginPath();ctx.moveTo(bx,ky+6);ctx.quadraticCurveTo(bx+sw,ky+6+22,bx+se,ky+61);ctx.stroke();ctx.restore();}
   function spawnFirework(cx,cy){const color=neonColors[Math.floor(Math.random()*neonColors.length)];for(let i=0;i<150;i++){const a=Math.random()*Math.PI*2,spd=2+Math.random()*6;particles.push({x:cx,y:cy,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,life:1,decay:.005+Math.random()*.015,color,sz:1.5+Math.random()*3.5});}setTimeout(()=>{for(let i=0;i<30;i++){const a2=Math.random()*Math.PI*2,d2=15+Math.random()*35;particles.push({x:cx+Math.cos(a2)*d2,y:cy+Math.sin(a2)*d2,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2-1,life:.4,decay:.03,color:"#fff",sz:.5+Math.random()*2});}},150);}
-  function initFireworks(){currentStage="fireworks";frame=0;fwTimer=setInterval(()=>{spawnFirework(80+Math.random()*(C.width-160),60+Math.random()*C.height*.45);},150);setTimeout(()=>{clearInterval(fwTimer);},3000);}
+  function initFireworks(){currentStage="fireworks";frame=0;fwTimer=setInterval(()=>{spawnFirework(80+Math.random()*(C.width-160),60+Math.random()*C.height*.45);},130);setTimeout(()=>{clearInterval(fwTimer);},2500);}
 
   function tick(){frame++;if(currentStage==="balloons"){ctx.clearRect(0,0,C.width,C.height);let alive=0;for(const b of balloons){if(frame<b.delay){alive++;continue;}b.ph+=b.freq;b.x+=Math.sin(b.ph)*.55;b.y+=b.vy;if(b.y>-150)alive++;drawBalloon(b);}if(alive===0&&frame>200){initFireworks();}}
-    if(currentStage==="fireworks"){ctx.fillStyle="rgba(0,0,0,.12)";ctx.fillRect(0,0,C.width,C.height);for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.life-=p.decay;if(p.life<=0){particles.splice(i,1);continue;}ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);ctx.fillStyle=p.color;ctx.globalAlpha=p.life;ctx.fill();}ctx.globalAlpha=1;if(particles.length===0&&frame>600){clearInterval(fwTimer);initThreeJSStage(overlay,ps);return;}}
+    if(currentStage==="fireworks"){ctx.fillStyle="rgba(0,0,0,.12)";ctx.fillRect(0,0,C.width,C.height);for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.life-=p.decay;if(p.life<=0){particles.splice(i,1);continue;}ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);ctx.fillStyle=p.color;ctx.globalAlpha=p.life;ctx.fill();}ctx.globalAlpha=1;if(particles.length===0&&frame>140){clearInterval(fwTimer);if(typeof THREE==="undefined"){drawCanvasCake(ctx,C,overlay,ps);}else{initThreeJSStage(overlay,ps);}return;}}
     if(currentStage==="balloons"||currentStage==="fireworks") requestAnimationFrame(tick);}
   tick();
 }
@@ -3881,7 +3881,7 @@ function initThreeJSStage(overlay,ps){
   function closeOverlay(){overlay.remove();ps.style.display="flex";ps.style.opacity="1";}
   try{
     if(typeof THREE==="undefined"){closeOverlay();return;}
-
+    overlay.querySelectorAll("canvas").forEach(c=>c.remove());
     const W=window.innerWidth,H=window.innerHeight;
     const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
     renderer.setSize(W,H);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
@@ -3891,8 +3891,6 @@ function initThreeJSStage(overlay,ps){
     const camera=new THREE.PerspectiveCamera(60,W/H,.1,1000);
     camera.position.z=300;
     const group=new THREE.Group();scene.add(group);
-
-    // 粒子坐标
     const N=2000;const posA=[],posB=[],colorArr=[];
     const cp=['#8899cc','#aabbee','#c8a0e0','#b0c4f0','#d4b8f0','#fff8e0','#cca0d0','#99bbdd','#e8d8ff','#ffe8d0'];
     for(let i=0;i<N;i++){colorArr.push(cp[Math.floor(Math.random()*cp.length)]);
@@ -3909,10 +3907,7 @@ function initThreeJSStage(overlay,ps){
     geo.setAttribute('color',new THREE.BufferAttribute(cl,3));
     const mat=new THREE.PointsMaterial({size:.5,vertexColors:true,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.85});
     const pts=new THREE.Points(geo,mat);group.add(pts);
-
     let progress=0,target=0;
-
-    // 触屏交互
     const bar=document.createElement("div");bar.className="gesture-bar show";
     bar.textContent="👆 点击屏幕：蛋糕 ⇄ 星海球体 | 左右滑动：旋转视角";
     overlay.appendChild(bar);
@@ -3920,7 +3915,6 @@ function initThreeJSStage(overlay,ps){
     overlay.addEventListener('pointerdown',e=>{down=true;target=target<.5?1:0;});
     overlay.addEventListener('pointerup',()=>{down=false;});
     overlay.addEventListener('pointermove',e=>{if(down&&target>.4){group.rotation.y+=(e.movementX||.5)*.004;}});
-
     function anim(){
       progress+=(target-progress)*.08;const p=progress;
       const arr=geo.attributes.position.array;
@@ -3931,9 +3925,7 @@ function initThreeJSStage(overlay,ps){
       if(overlay.parentNode) requestAnimationFrame(anim);
     }
     anim();
-
-    function overlayRemoveFallback(){overlay.remove();ps.style.display="flex";ps.style.opacity="1";}
-  }catch(e){overlayRemoveFallback();}
+  }catch(e){closeOverlay();}
 }
 </script>
 </body>
