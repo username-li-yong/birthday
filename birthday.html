@@ -3727,36 +3727,117 @@ function spawnSpeedLines(){
 
 window.addEventListener('resize',()=>{if(document.getElementById('countdownOverlay').classList.contains('show'))initStarsCanvas();});
 
-// 蛋糕引导入口：主页淡出 → 全屏倒计时遮罩 → 3→2→1
+// 蛋糕引导入口：主页淡出 → Canvas 蜡烛倒计时 3→2→1
 function showCakeGuide(){
   const ps=document.getElementById("planetStage"); if(!ps) return;
   const arrow=document.getElementById("guideArrow"); if(arrow) arrow.classList.remove("show");
   const text=document.getElementById("guideText"); if(text) text.classList.remove("show");
-  // 先创建遮罩（z-index: 999 确保盖住一切，不准一闪）
+  // 创建遮罩
   const overlay=document.createElement("div");
   overlay.id="cdOverlay";
   overlay.style.cssText="position:fixed;inset:0;z-index:999;background:#0a0a14;display:flex;flex-direction:column;justify-content:center;align-items:center";
   document.body.appendChild(overlay);
-  // 然后淡出星球
+  // 淡出星球
   ps.style.transition="opacity .5s"; ps.style.opacity="0";
   setTimeout(()=>{ ps.style.display="none"; },500);
 
-  // 倒计时数字
-  const numEl=document.createElement("div");
-  numEl.style.cssText="font-size:200px;font-weight:bold;color:#ffe8d0;text-shadow:0 0 20px rgba(255,180,100,.6),0 0 60px rgba(255,150,80,.4);font-family:KaiTi,serif;line-height:1";
-  numEl.textContent="3";
-  overlay.appendChild(numEl);
+  // Canvas 蜡烛数字
+  const C=document.createElement("canvas");
+  C.width=overlay.clientWidth||window.innerWidth; C.height=overlay.clientHeight||window.innerHeight;
+  C.style.cssText="position:absolute;inset:0;z-index:2;pointer-events:none";
+  overlay.appendChild(C); const ctx=C.getContext("2d");
 
-  let count=3;
+  let count=3, alpha=1, phase="countdown";
+  const cx=C.width/2, cy=C.height/2;
+
+  function drawCandleNumber(){
+    ctx.clearRect(0,0,C.width,C.height);
+    if(phase!=="countdown") return;
+
+    const numStr=String(count);
+    const fs=Math.round(C.height*.28);
+    ctx.font=`bold ${fs}px "KaiTi","STKaiti","楷体",serif`;
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    const tm=ctx.measureText(numStr);
+    const tw=tm.width, th=fs;
+    const nx=cx-tw/2, ny=cy-th/2 - 30;
+
+    // === 3D 立体偏移层 (深度) ===
+    const depth=5;
+    for(let i=depth;i>=1;i--){
+      ctx.font=`bold ${fs}px "KaiTi","STKaiti","楷体",serif`;
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle=`rgba(180,120,115,${.35/depth*i})`;
+      ctx.fillText(numStr, cx+i, ny+i+th/2);
+    }
+
+    // === 蜡质渐变主体 ===
+    const g=ctx.createLinearGradient(cx-tw*.4, ny-tw*.2, cx+tw*.4, ny+th*1.1);
+    g.addColorStop(0,"#FFF0EE"); g.addColorStop(.3,"#FDE0DA");
+    g.addColorStop(.6,"#F5C1BB"); g.addColorStop(1,"#E8A8A0");
+    ctx.fillStyle=g; ctx.fillText(numStr, cx, ny+th/2);
+
+    // === 烛芯 (数字顶部) ===
+    const wickX=cx, wickY=ny-4;
+    ctx.strokeStyle="#4A4A4A"; ctx.lineWidth=2; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(wickX,wickY); ctx.lineTo(wickX,wickY-14);
+    ctx.stroke();
+
+    // === 火苗 (贝塞尔水滴形) ===
+    const t=Date.now()*.012;
+    const flickerX=Math.sin(t*3.1)*2.5+Math.sin(t*7.3)*1.2;
+    const flickerY=Math.sin(t*2.7)*1.5+Math.sin(t*5.9)*.6;
+    const fx=wickX+flickerX, fy=wickY-16+flickerY;
+
+    // 外火光晕
+    ctx.save();
+    ctx.shadowBlur=18; ctx.shadowColor="rgba(255,160,40,.7)";
+    ctx.beginPath();
+    ctx.moveTo(fx,fy);
+    ctx.quadraticCurveTo(fx-9,fy+12, fx-4,fy+24);
+    ctx.quadraticCurveTo(fx-1,fy+28, fx,fy+30);
+    ctx.quadraticCurveTo(fx+1,fy+28, fx+4,fy+24);
+    ctx.quadraticCurveTo(fx+9,fy+12, fx,fy);
+    ctx.fillStyle="rgba(255,152,0,.6)"; ctx.fill();
+    ctx.restore();
+
+    // 内火芯
+    const ifx=fx+Math.sin(t*5.1)*1, ify=fy+Math.sin(t*3.5)*.8;
+    ctx.beginPath();
+    ctx.moveTo(ifx,ify+6);
+    ctx.quadraticCurveTo(ifx-4,ify+14, ifx-1,ify+22);
+    ctx.quadraticCurveTo(ifx,ify+26, ifx,ify+26);
+    ctx.quadraticCurveTo(ifx,ify+26, ifx+1,ify+22);
+    ctx.quadraticCurveTo(ifx+4,ify+14, ifx,ify+6);
+    ctx.fillStyle="#FFF59D"; ctx.fill();
+    ctx.fillStyle="rgba(255,255,200,.5)"; ctx.fill();
+
+    // 底部火芯白热
+    ctx.beginPath(); ctx.arc(ifx,ify+18,4,0,Math.PI*2);
+    ctx.fillStyle="#fff"; ctx.globalAlpha=.7; ctx.fill(); ctx.globalAlpha=1;
+
+    if(phase==="countdown") requestAnimationFrame(drawCandleNumber);
+  }
+  drawCandleNumber();
+
+  // 倒计时切换
   const timer=setInterval(()=>{
     count--;
     if(count<=0){
+      phase="done";
       clearInterval(timer);
-      numEl.textContent="0";
+      // 最后一帧画 0
+      ctx.clearRect(0,0,C.width,C.height);
+      const fs2=Math.round(C.height*.28);
+      ctx.font=`bold ${fs2}px "KaiTi","STKaiti","楷体",serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      // 3D depth
+      for(let i=5;i>=1;i--){ ctx.fillStyle=`rgba(180,120,115,${.35/5*i})`; ctx.fillText("0", cx+i, cy-30+i+fs2/2); }
+      const g2=ctx.createLinearGradient(cx-fs2*.3,cy-fs2*.5,cx+fs2*.3,cy+fs2*.6);
+      g2.addColorStop(0,"#FFF0EE"); g2.addColorStop(.5,"#F5C1BB"); g2.addColorStop(1,"#E8A8A0");
+      ctx.fillStyle=g2; ctx.fillText("0", cx, cy-30+fs2/2);
       setTimeout(()=>{ overlay.innerHTML=""; launchPhase3(overlay,ps); },500);
       return;
     }
-    numEl.textContent=count;
   },1000);
 }
 
