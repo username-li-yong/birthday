@@ -5626,6 +5626,7 @@ function showWeekLockToast(){
 let particleChamberActive = false;
 let particleScene, particleCamera, particleRenderer, particlePoints;
 let particleCakePositions = [], particleSpherePositions = [];
+let particleStrawberryTips = [];  // 草莓顶冠粒子索引
 let particleCurrentFactor = 0, particleTargetFactor = 0; // 0=cake, 1=sphere
 let particleRotationX = 0, particleRotationY = 0;
 let particleTargetRotationX = 0, particleTargetRotationY = 0;
@@ -5634,40 +5635,73 @@ let particleHandsInstance = null;
 let particleCameraUtilsInstance = null;
 let particleLastHandData = null;
 let particleHandLostCounter = 0;
+let particlePrevGesture = null;  // 'open' | 'fist' | null — 用于检测切换边沿
 const PARTICLE_COUNT = 12000;
 
-// ===== 三层蛋糕粒子坐标生成 =====
+// ===== 「捏合抓取 6 张图片」系统 =====
+const PHOTO_PATHS = [
+  'picture_and_/微信图片_20260712173316_100_1.jpg',
+  'picture_and_/微信图片_20260712173318_101_1.jpg',
+  'picture_and_/微信图片_20260712173319_102_1.jpg',
+  'picture_and_/微信图片_20260712173320_103_1.jpg',
+  'picture_and_/微信图片_20260712173321_104_1.jpg',
+  'picture_and_/微信图片_20260712173322_105_1.jpg',
+];
+const PHOTO_COUNT = 6;
+const PHOTO_SIZE = { w: 0.85, h: 0.65 };          // 每张图片平面尺寸 (宽高比 ~1.3:1)
+const PHOTO_ORBIT_RADIUS = 4.0;                     // 球体腰部环绕半径
+const PHOTO_PINCH_THRESHOLD = 0.06;                 // 拇指尖↔食指尖距离 < 此值 → 捏合
+let particlePhotoMeshes = [];                        // THREE.Mesh 数组
+let particlePhotoOrbits = [];                        // 球体上轨道坐标 {basePos:THREE.Vector3}
+let particleActivePhoto = null;                      // 当前被捏合抓取的照片索引 (null=无)
+let particlePhotoGrabProgress = 0;                   // 0=轨道上, 1=推到眼前
+let particleLastPinchState = false;                  // 上一帧是否捏合
+
+// ===== 三层蛋糕粒子坐标生成（3D实体圆柱体 + 草莓顶） =====
 function generateCakePositions(){
   const positions = [];
-  // 底层：大圆盘 r=3.2, h=-1.2
+  const strawberryTips = []; // 草莓顶冠粒子索引
+  // 底层：厚实大圆柱 r=1.8~3.2, y=-2.0~-0.6
   for(let i = 0; i < 5000; i++){
     const angle = Math.random() * Math.PI * 2;
-    const r = 1.5 + Math.random() * 1.7;
-    const h = -1.5 + Math.random() * 0.5;
-    const x = Math.cos(angle) * r;
-    const z = Math.sin(angle) * r;
-    const y = h + (r < 3.19 ? 0.3 : 0);
-    positions.push(new THREE.Vector3(x, y, z));
+    const innerBias = Math.pow(Math.random(), 1.5); // 偏向内部填充，造实体厚感
+    const rr = 1.8 + innerBias * 1.4;
+    const h = -2.0 + Math.random() * 1.4;
+    const x = Math.cos(angle) * rr;
+    const z = Math.sin(angle) * rr;
+    positions.push(new THREE.Vector3(x, h, z));
   }
-  // 中层：中等圆盘 r=2.2, h=0.0
+  // 中层：中等厚圆柱 r=0.6~2.2, y=-0.3~0.9
   for(let i = 0; i < 4000; i++){
     const angle = Math.random() * Math.PI * 2;
-    const r = 0.6 + Math.random() * 1.6;
-    const h = 0.1 + Math.random() * 0.5;
-    const x = Math.cos(angle) * r;
-    const z = Math.sin(angle) * r;
+    const innerBias = Math.pow(Math.random(), 1.5);
+    const rr = 0.6 + innerBias * 1.6;
+    const h = -0.3 + Math.random() * 1.2;
+    const x = Math.cos(angle) * rr;
+    const z = Math.sin(angle) * rr;
     positions.push(new THREE.Vector3(x, h, z));
   }
-  // 顶层：小圆盘 r=1.2, h=1.5 + 蜡烛
-  for(let i = 0; i < 3000; i++){
+  // 顶层：小厚圆柱 r=0.2~1.2, y=1.1~2.0
+  for(let i = 0; i < 2500; i++){
     const angle = Math.random() * Math.PI * 2;
-    const r = 0.2 + Math.random() * 1.0;
-    const h = 1.6 + Math.random() * 0.4;
-    const x = Math.cos(angle) * r;
-    const z = Math.sin(angle) * r;
+    const innerBias = Math.pow(Math.random(), 1.5);
+    const rr = 0.2 + innerBias * 1.0;
+    const h = 1.1 + Math.random() * 0.9;
+    const x = Math.cos(angle) * rr;
+    const z = Math.sin(angle) * rr;
     positions.push(new THREE.Vector3(x, h, z));
   }
-  return positions;
+  // 🍓 草莓顶冠：顶层中心密集红色圆点 r=0~0.4, y=2.0~2.3
+  for(let i = 0; i < 500; i++){
+    const angle = Math.random() * Math.PI * 2;
+    const rr = Math.random() * 0.4;
+    const h = 2.0 + Math.random() * 0.3;
+    const x = Math.cos(angle) * rr;
+    const z = Math.sin(angle) * rr;
+    positions.push(new THREE.Vector3(x, h, z));
+    strawberryTips.push(positions.length - 1);
+  }
+  return { positions, strawberryTips };
 }
 
 // ===== 球体粒子坐标生成 =====
@@ -5706,7 +5740,9 @@ function initParticleThreeJS(){
   particleRenderer.setClearColor(0x050510, 1);
 
   // 生成坐标
-  particleCakePositions = generateCakePositions();
+  const cakeData = generateCakePositions();
+  particleCakePositions = cakeData.positions;
+  particleStrawberryTips = cakeData.strawberryTips;
   particleSpherePositions = generateSpherePositions();
 
   // BufferGeometry + 颜色属性
@@ -5714,18 +5750,18 @@ function initParticleThreeJS(){
   const positions = new Float32Array(PARTICLE_COUNT * 3);
   const colors = new Float32Array(PARTICLE_COUNT * 3);
 
-  // 蛋糕色系调色盘
+  // 暖奶油色系调色盘 (fde2e4 / fff5f0 / ffffff 交织)
   const palettes = [
-    [1.0, 0.70, 0.80], // 粉红草莓
-    [1.0, 0.85, 0.55], // 奶油黄
-    [0.75, 0.90, 1.0], // 淡蓝莓
-    [1.0, 0.55, 0.50], // 樱桃红
-    [0.85, 1.0, 0.65], // 薄荷绿
-    [0.95, 0.75, 1.0], // 薰衣草紫
-    [1.0, 0.90, 0.75], // 香槟金
-    [0.60, 0.80, 1.0], // 星空蓝
-    [1.0, 0.55, 0.75], // 玫瑰粉
-    [0.50, 1.0, 0.85], // 青苹果
+    [0.996, 0.886, 0.894], // 暖奶油粉 #fde2e4
+    [1.000, 0.961, 0.941], // 奶油白 #fff5f0
+    [1.000, 1.000, 1.000], // 纯白 #ffffff
+    [0.996, 0.918, 0.925], // 淡粉 #fdeae9
+    [1.000, 0.976, 0.969], // 奶白 #fffaf6
+    [0.992, 0.925, 0.910], // 杏色 #fdec8
+    [0.996, 0.929, 0.910], // 浅桃 #feee9
+    [1.000, 0.945, 0.914], // 暖象牙 #fff1ea
+    [0.996, 0.906, 0.902], // 浅玫瑰 #fde8e6
+    [1.000, 0.988, 0.980], // 雪白 #fffcfb
   ];
 
   for(let i = 0; i < PARTICLE_COUNT; i++){
@@ -5733,37 +5769,45 @@ function initParticleThreeJS(){
     positions[i*3] = p.x;
     positions[i*3+1] = p.y;
     positions[i*3+2] = p.z;
-    const pal = palettes[i % palettes.length];
-    const variation = 0.7 + Math.random() * 0.3;
-    colors[i*3] = pal[0] * variation;
-    colors[i*3+1] = pal[1] * variation;
-    colors[i*3+2] = pal[2] * variation;
+    // 🍓 草莓顶冠专属红色
+    if(particleStrawberryTips.includes(i)){
+      const berryVar = 0.85 + Math.random() * 0.15;
+      colors[i*3]   = 0.937 * berryVar;  // #ef4444
+      colors[i*3+1] = 0.267 * berryVar;
+      colors[i*3+2] = 0.267 * berryVar;
+    } else {
+      const pal = palettes[i % palettes.length];
+      const variation = 0.75 + Math.random() * 0.25;
+      colors[i*3]   = pal[0] * variation;
+      colors[i*3+1] = pal[1] * variation;
+      colors[i*3+2] = pal[2] * variation;
+    }
   }
 
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-  // 圆形发光粒子纹理
+  // 奶油发光粒子纹理 (暖白→淡粉→透)
   const glowCanvas = document.createElement('canvas');
   glowCanvas.width = 32; glowCanvas.height = 32;
   const gctx = glowCanvas.getContext('2d');
   const gradient = gctx.createRadialGradient(16, 16, 0, 16, 16, 16);
   gradient.addColorStop(0, 'rgba(255,255,255,1)');
-  gradient.addColorStop(0.2, 'rgba(255,255,255,0.85)');
-  gradient.addColorStop(0.5, 'rgba(255,200,150,0.35)');
-  gradient.addColorStop(1, 'rgba(255,100,50,0)');
+  gradient.addColorStop(0.25, 'rgba(255,245,240,0.9)');
+  gradient.addColorStop(0.55, 'rgba(253,226,228,0.4)');
+  gradient.addColorStop(1, 'rgba(253,215,200,0)');
   gctx.fillStyle = gradient;
   gctx.fillRect(0, 0, 32, 32);
   const glowTexture = new THREE.CanvasTexture(glowCanvas);
 
   const mat = new THREE.PointsMaterial({
-    size: 0.09,
+    size: 0.06,
     map: glowTexture,
     vertexColors: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.9,
   });
 
   particlePoints = new THREE.Points(geo, mat);
@@ -5772,6 +5816,44 @@ function initParticleThreeJS(){
   // 环境光点缀
   const ambient = new THREE.AmbientLight(0x332244, 0.5);
   particleScene.add(ambient);
+
+  // ===== 加载 6 张图片并创建 PhotoMesh 平面 =====
+  const textureLoader = new THREE.TextureLoader();
+  PHOTO_PATHS.forEach(function(path, idx){
+    textureLoader.load(path, function(tex){
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      const photoGeo = new THREE.PlaneGeometry(PHOTO_SIZE.w, PHOTO_SIZE.h);
+      const photoMat = new THREE.MeshBasicMaterial({
+        map: tex,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(photoGeo, photoMat);
+
+      // 球体腰部轨道坐标：60° 黄金夹角分布在 y≈0 平面上
+      const phi   = Math.PI / 2;                         // 赤道面 (y≈0)
+      const theta = (idx / PHOTO_COUNT) * Math.PI * 2;   // 60° 等间距
+      const basePos = new THREE.Vector3(
+        PHOTO_ORBIT_RADIUS * Math.sin(phi) * Math.cos(theta),
+        0,
+        PHOTO_ORBIT_RADIUS * Math.sin(phi) * Math.sin(theta)
+      );
+      mesh.position.copy(basePos);
+      // 让平面面朝球心（lookAt 原点）
+      mesh.lookAt(0, 0, 0);
+
+      mesh.userData = { idx: idx, basePos: basePos.clone(), theta: theta };
+      particleScene.add(mesh);
+      particlePhotoMeshes[idx] = mesh;
+      particlePhotoOrbits[idx] = { basePos: basePos.clone(), theta: theta };
+    },
+    undefined,  // onProgress
+    function(err){ console.warn('照片加载失败:', path, err); }
+    );
+  });
 
   // 窗口大小响应
   window.addEventListener('resize', onParticleResize);
@@ -5788,16 +5870,19 @@ function onParticleResize(){
   particleCamera.updateProjectionMatrix();
 }
 
-// ===== 动画循环 =====
+// ===== 动画循环（差速插值：快扩散 / 慢凝聚 + 旋转锁定） =====
 function particleAnimate(){
   if(!particleChamberActive) return;
   particleAnimId = requestAnimationFrame(particleAnimate);
 
-  // 平滑插值因子
-  particleCurrentFactor += (particleTargetFactor - particleCurrentFactor) * 0.04;
-  // 平滑旋转
-  particleRotationX += (particleTargetRotationX - particleRotationX) * 0.06;
-  particleRotationY += (particleTargetRotationY - particleRotationY) * 0.06;
+  // 差速插值因子：扩散快(0.08)，凝聚慢(0.03)
+  const lerpSpeed = (particleTargetFactor > particleCurrentFactor) ? 0.08 : 0.03;
+  particleCurrentFactor += (particleTargetFactor - particleCurrentFactor) * lerpSpeed;
+
+  // 旋转插值（球体旋转用较快速度，坍缩回蛋糕用慢速锁死）
+  const rotSpeed = (particleTargetFactor > 0.3) ? 0.06 : 0.02;
+  particleRotationX += (particleTargetRotationX - particleRotationX) * rotSpeed;
+  particleRotationY += (particleTargetRotationY - particleRotationY) * rotSpeed;
 
   const positions = particlePoints.geometry.attributes.position.array;
   const cf = particleCurrentFactor;
@@ -5815,15 +5900,85 @@ function particleAnimate(){
   particlePoints.rotation.x = particleRotationX;
   particlePoints.rotation.y = particleRotationY;
 
-  // 相机微动
+  // ── 照片球体同步与可见性 ──
+  const inSphere = cf > 0.5; // 球体过半才算"处于球体形态"
+  for(let i = 0; i < PHOTO_COUNT; i++){
+    const mesh = particlePhotoMeshes[i];
+    if(!mesh) continue;
+    const orbit = particlePhotoOrbits[i];
+    const mat = mesh.material;
+
+    // 蛋糕形态 → 隐藏/收缩到原点内部；球体形态 → 可见
+    const targetOpacity = (inSphere && particleActivePhoto !== i) ? 0.9
+                        : (particleActivePhoto === i) ? 0.9
+                        : (cf > 0.2 ? cf * 0.7 : 0);
+    mat.opacity += (targetOpacity - mat.opacity) * 0.06;
+    mesh.visible = mat.opacity > 0.02;
+
+    // 被抓取的照片跳过轨道计算
+    if(particleActivePhoto === i) continue;
+
+    // 轨道位置随粒子球旋转
+    const bp = orbit.basePos;
+    const rotatedPos = bp.clone();
+    rotatedPos.applyAxisAngle(new THREE.Vector3(1,0,0), particleRotationX);
+    rotatedPos.applyAxisAngle(new THREE.Vector3(0,1,0), particleRotationY);
+    mesh.position.copy(rotatedPos);
+    // 面朝球心
+    mesh.lookAt(0, 0, 0);
+  }
+
+  // ── 捏合抓取动画：推到眼前 / 复位 ──
+  const GRAB_TARGET_Z = 5.5;  // 推到眼前的 Z 位置
+  if(particleActivePhoto !== null){
+    const mesh = particlePhotoMeshes[particleActivePhoto];
+    if(mesh){
+      // 插值 progress
+      particlePhotoGrabProgress += (1 - particlePhotoGrabProgress) * 0.08;
+      const p = particlePhotoGrabProgress;
+      // 推到摄像机正前方，居中
+      mesh.position.lerp(new THREE.Vector3(0, 0, GRAB_TARGET_Z), p * 0.5);
+      // 正对屏幕（looking at camera）
+      mesh.lookAt(particleCamera.position);
+      // 放大一点
+      const s = 1 + p * 1.8;
+      mesh.scale.set(s, s, 1);
+      // 其余照片 + 粒子透明虚化
+      for(let i = 0; i < PHOTO_COUNT; i++){
+        if(i === particleActivePhoto || !particlePhotoMeshes[i]) continue;
+        particlePhotoMeshes[i].material.opacity = Math.max(0.08, particlePhotoMeshes[i].material.opacity * 0.9);
+      }
+      particlePoints.material.opacity += (0.15 - particlePoints.material.opacity) * 0.04;
+    }
+  } else {
+    // 无抓取 → 复位 progress
+    particlePhotoGrabProgress += (0 - particlePhotoGrabProgress) * 0.06;
+    if(particlePhotoGrabProgress < 0.01) particlePhotoGrabProgress = 0;
+    // 恢复粒子透明度
+    particlePoints.material.opacity += (0.9 - particlePoints.material.opacity) * 0.03;
+    // 照片缩放恢复
+    for(let i = 0; i < PHOTO_COUNT; i++){
+      const mesh = particlePhotoMeshes[i];
+      if(!mesh) continue;
+      mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.06);
+    }
+  }
+
+  // 相机微动（蛋糕状态下微微浮动，球体状态下略活跃）
   const t = Date.now() * 0.0001;
-  particleCamera.position.x += (Math.sin(t) * 0.15 - particleCamera.position.x) * 0.02;
-  particleCamera.position.y += (0.5 + Math.cos(t * 0.7) * 0.3 - particleCamera.position.y) * 0.02;
+  const camAmp = (cf < 0.5) ? 0.08 : 0.2;
+  particleCamera.position.x += (Math.sin(t) * camAmp - particleCamera.position.x) * 0.02;
+  particleCamera.position.y += (0.5 + Math.cos(t * 0.7) * camAmp * 0.6 - particleCamera.position.y) * 0.02;
 
   particleRenderer.render(particleScene, particleCamera);
 }
 
-// ===== 手势 → 状态映射 =====
+// ===== 手势 → 状态映射（清晰阈值 + 边沿拦截） =====
+// 手势定义：
+//   ✋ 张开手掌 (avgExtension > 1.25) → 扩散为球形 + 开启手掌翻转旋转（拦截握拳）
+//   ✊ 紧握拳头 (avgExtension < 1.06) → 坍缩为蛋糕 + 锁定标准正前视图（拦截扩散和旋转）
+//   中间地带 → 保持当前方向，不做大动作
+// 手掌平展判断依据：手指伸直度（指尖/指根到手腕距离比值）
 function updateGestureState(handData){
   if(!handData || handData.handedness === 'None'){
     particleHandLostCounter++;
@@ -5831,51 +5986,150 @@ function updateGestureState(handData){
       particleTargetFactor = 0; // 无人手 → 回蛋糕
       particleTargetRotationX = 0;
       particleTargetRotationY = 0;
+      particlePrevGesture = null;
     }
     return;
   }
   particleHandLostCounter = 0;
 
   const landmarks = handData.landmarks;
-  // 判断张手/握拳：指尖与指根距离
-  const fingerTips = [4,8,12,16,20]; // 指尖
-  const fingerMCP = [2,5,9,13,17];    // 指根
+  const wrist = landmarks[0];
+
+  // 判断张手/握拳：五指指尖到手腕距离 / 指根到手腕距离
+  const fingerTips = [4,8,12,16,20]; // 拇指尖、食指尖、中指尖、无名指尖、小指尖
+  const fingerMCP  = [2,5,9,13,17];   // 对应指根关节
   let totalExtension = 0;
   for(let j = 0; j < 5; j++){
     const tip = landmarks[fingerTips[j]];
     const mcp = landmarks[fingerMCP[j]];
-    const wrist = landmarks[0];
     const tipToWrist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y, tip.z - wrist.z);
     const mcpToWrist = Math.hypot(mcp.x - wrist.x, mcp.y - wrist.y, mcp.z - wrist.z);
     totalExtension += tipToWrist / Math.max(mcpToWrist, 0.01);
   }
   const avgExtension = totalExtension / 5;
 
-  // 张开手掌 → 扩散球体 (avgExtension > 1.25)
-  // 握拳 → 凝聚蛋糕 (avgExtension < 1.08)
-  if(avgExtension > 1.22){
-    particleTargetFactor = Math.min(1, particleTargetFactor + 0.03);
-  } else if(avgExtension < 1.08){
-    particleTargetFactor = Math.max(0, particleTargetFactor - 0.03);
+  // ── 清晰阈值判断 + 边沿切换 ──
+  const OPEN_THRESHOLD  = 1.25;  // > 此值 = 明确张开
+  const FIST_THRESHOLD  = 1.06;  // < 此值 = 明确握拳
+
+  const isOpenPalm = avgExtension > OPEN_THRESHOLD;
+  const isFist     = avgExtension < FIST_THRESHOLD;
+
+  // 切换动效：张开 → 扩散为球 (targetFactor → 1)
+  if(isOpenPalm){
+    particleTargetFactor = 1;
+    // 仅在球体状态下允许手掌旋转（>0.5因子时启用旋转映射）
   }
 
-  // 手掌倾斜 → 球体旋转
-  const wrist = landmarks[0];
-  const midFinger = landmarks[9];
-  const dx = midFinger.x - wrist.x;
-  const dy = midFinger.y - wrist.y;
-  const dz = midFinger.z - wrist.z;
-  particleTargetRotationY = dx * 6;
-  particleTargetRotationX = -dy * 4 + 0.2;
+  // 切换动效：握拳 → 坍缩为蛋糕 (targetFactor → 0)
+  if(isFist){
+    particleTargetFactor = 0;
+  }
+
+  // ── 边沿检测：从张开→握拳切换时，强制锁定旋转归零 ──
+  if(isFist && particlePrevGesture === 'open'){
+    // 刚握拳：立刻锁死旋转到标准正前视图
+    particleTargetRotationX = 0;
+    particleTargetRotationY = 0;
+  }
+
+  // ── 手掌倾斜 → 球体旋转（仅当当前处于球体/过渡态时启用） ──
+  if(particleTargetFactor === 1 || particleCurrentFactor > 0.3){
+    const midFinger = landmarks[9]; // 中指指根作为手掌方向参考
+    const dx = midFinger.x - wrist.x;
+    const dy = midFinger.y - wrist.y;
+    particleTargetRotationY = dx * 6;
+    particleTargetRotationX = -dy * 4 + 0.2;
+  }
+  // 当 targetFactor=0（已经要回到蛋糕），不再写入旋转目标，让动画循环插值归零
+
+  // 记录当前手势用于边沿检测
+  if(isOpenPalm && particlePrevGesture !== 'open'){
+    particlePrevGesture = 'open';
+  } else if(isFist && particlePrevGesture !== 'fist'){
+    particlePrevGesture = 'fist';
+  } else if(!isOpenPalm && !isFist){
+    // 中间地带不改变 prevGesture
+  }
 
   // 更新状态栏
   const statusText = document.getElementById('particleStatusText');
   const hint = document.getElementById('particleGestureHint');
   if(statusText){
-    if(avgExtension > 1.22) statusText.textContent = '🖐 检测到张开手掌 — 粒子扩散为立体球型';
-    else if(avgExtension < 1.08) statusText.textContent = '👊 检测到握拳 — 粒子凝聚为三层蛋糕';
-    else statusText.textContent = '🤚 手掌平移中 — 调整球体旋转视角';
+    if(particleActivePhoto !== null){
+      statusText.textContent = '🤏 捏合抓取照片 #' + (particleActivePhoto+1) + ' — 放大至眼前 ✦';
+    } else if(isOpenPalm){
+      statusText.textContent = '🖐 张开手掌 — 粒子扩散为立体球型 ✨';
+    } else if(isFist){
+      statusText.textContent = '👊 握拳 — 粒子凝聚为三层蛋糕 🎂';
+    } else {
+      statusText.textContent = '🤚 中间手势 — 保持当前状态…';
+    }
   }
+  if(hint){
+    if(particleActivePhoto !== null){
+      hint.innerHTML = '🤏 <b>捏合抓取中</b> — 照片放大至眼前<br>👐 松开手指 — 照片复位轨道';
+    } else if(isOpenPalm){
+      hint.innerHTML = '🖐 <b>张开手掌</b> — 扩散球体 + 旋转视角<br>🤏 拇指食指捏合 — 抓取照片';
+    } else if(isFist){
+      hint.innerHTML = '🖐 张开手掌 — 扩散球体 + 旋转视角<br>👊 <b>握拳</b> — 坍缩蛋糕 + 锁定正前视图';
+    } else {
+      hint.innerHTML = '🖐 张开手掌 — 扩散球体<br>👊 握拳 — 凝聚蛋糕<br>🤏 拇指食指捏合 — 抓取照片';
+    }
+  }
+
+  // ── 捏合抓取逻辑：拇指尖(4) ↔ 食指尖(8) 距离 ──
+  const thumbTip = landmarks[4];
+  const indexTip = landmarks[8];
+  const pinchDist = Math.hypot(
+    thumbTip.x - indexTip.x,
+    thumbTip.y - indexTip.y,
+    thumbTip.z - indexTip.z
+  );
+  const isPinching = pinchDist < PHOTO_PINCH_THRESHOLD;
+
+  // 捏合边沿检测
+  if(isPinching && !particleLastPinchState && particleCurrentFactor > 0.3){
+    // 刚捏合 → 射线检测哪张照片被"选中"
+    const hitIdx = raycastPhoto(indexTip);
+    if(hitIdx !== -1){
+      particleActivePhoto = hitIdx;
+    }
+  }
+
+  // 松开捏合 → 复位
+  if(!isPinching && particleLastPinchState && particleActivePhoto !== null){
+    particleActivePhoto = null;
+  }
+
+  particleLastPinchState = isPinching;
+}
+
+// ===== 射线碰撞检测（食指 → 3D 照片平面） =====
+function raycastPhoto(indexTipLandmark){
+  if(!particleCamera || particlePhotoMeshes.length === 0) return -1;
+
+  // 食指尖屏幕坐标：MediaPipe 的 x,y 是 0~1 归一化，y 轴朝下
+  const mouse = new THREE.Vector2(
+    (indexTipLandmark.x - 0.5) * 2,   // → -1..1
+    -(indexTipLandmark.y - 0.5) * 2   // 翻转 Y
+  );
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, particleCamera);
+
+  // 只检测可见的照片 mesh
+  const visibleMeshes = particlePhotoMeshes.filter(function(m){
+    return m && m.visible && m.material.opacity > 0.1;
+  });
+  if(visibleMeshes.length === 0) return -1;
+
+  const intersects = raycaster.intersectObjects(visibleMeshes);
+  if(intersects.length > 0){
+    const idx = intersects[0].object.userData.idx;
+    if(typeof idx === 'number') return idx;
+  }
+  return -1;
 }
 
 // ===== MediaPipe Hands 初始化 =====
@@ -5984,8 +6238,26 @@ function closeParticleChamber(){
   particleCamera = null;
   particleCakePositions = [];
   particleSpherePositions = [];
+  particleStrawberryTips = [];
+  particlePrevGesture = null;
+  particleActivePhoto = null;
+  particlePhotoGrabProgress = 0;
+  particleLastPinchState = false;
   particleTargetFactor = 0;
   particleCurrentFactor = 0;
+
+  // 清理照片 mesh
+  particlePhotoMeshes.forEach(function(m){
+    if(!m) return;
+    if(m.geometry) m.geometry.dispose();
+    if(m.material){
+      if(m.material.map) m.material.map.dispose();
+      m.material.dispose();
+    }
+    if(particleScene) particleScene.remove(m);
+  });
+  particlePhotoMeshes = [];
+  particlePhotoOrbits = [];
 
   document.getElementById('particleStatusText').textContent = '初始化中…';
 }
