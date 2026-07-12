@@ -5607,7 +5607,7 @@ function showWeekLockToast(){
   <div class="particle-camera-preview" id="particleCameraPreview">
     <video class="particle-camera-video" id="particleCameraVideo" autoplay playsinline muted></video>
     <div class="particle-camera-label">📡 手势感应</div>
-    <div class="particle-gesture-hint" id="particleGestureHint">🖐 张开手掌 — 扩散球体<br>👊 握拳 — 凝聚蛋糕<br>🤚 翻转手掌 — 旋转视角</div>
+    <div class="particle-gesture-hint" id="particleGestureHint">🖐 张开手掌 — 扩散球体 + 左右摆手旋转<br>👊 握拳 — 凝聚蛋糕<br>🔢 伸出1/2/3根手指 — 数字盲盒随机二选一图</div>
   </div>
   <div class="particle-status-bar" id="particleStatusBar">
     <span class="particle-status-dot"></span>
@@ -5648,14 +5648,18 @@ const PHOTO_PATHS = [
   'picture_and_/微信图片_20260712173322_105_1.jpg',
 ];
 const PHOTO_COUNT = 6;
-const PHOTO_SIZE = { w: 0.85, h: 0.65 };          // 每张图片平面尺寸 (宽高比 ~1.3:1)
 const PHOTO_ORBIT_RADIUS = 4.0;                     // 球体腰部环绕半径
-const PHOTO_PINCH_THRESHOLD = 0.06;                 // 拇指尖↔食指尖距离 < 此值 → 捏合
 let particlePhotoMeshes = [];                        // THREE.Mesh 数组
 let particlePhotoOrbits = [];                        // 球体上轨道坐标 {basePos:THREE.Vector3}
-let particleActivePhoto = null;                      // 当前被捏合抓取的照片索引 (null=无)
+let particleActivePhoto = null;                      // 当前盲盒弹射照片索引 (null=无)
 let particlePhotoGrabProgress = 0;                   // 0=轨道上, 1=推到眼前
-let particleLastPinchState = false;                  // 上一帧是否捏合
+
+// ===== 「极速数字盲盒选图 + 全状态物理同步」系统 =====
+let particleBlindBoxLocked = false;                 // 盲盒状态锁（有照片放大时锁定）
+let particleBlindBoxFingerCount = 0;                // 当前识别的手指数量 (1-5, 0=fist)
+let particleBlindBoxJustTriggered = false;          // 边沿触发标记（防止重复触发）
+let particleHandXRaw = 0.5;                         // 手腕 X 归一化偏移 (0-1, 中心0.5)
+let particleSwingTargetY = 0;                       // 摆动目标旋转角
 
 // ===== 三层蛋糕粒子坐标生成（3D实体圆柱体 + 草莓顶） =====
 function generateCakePositions(){
@@ -5817,13 +5821,21 @@ function initParticleThreeJS(){
   const ambient = new THREE.AmbientLight(0x332244, 0.5);
   particleScene.add(ambient);
 
-  // ===== 加载 6 张图片并创建 PhotoMesh 平面 =====
+  // ===== 加载 6 张图片并创建 PhotoMesh 平面（动态宽高比，杜绝形变） =====
   const textureLoader = new THREE.TextureLoader();
   PHOTO_PATHS.forEach(function(path, idx){
     textureLoader.load(path, function(tex){
       tex.minFilter = THREE.LinearFilter;
       tex.magFilter = THREE.LinearFilter;
-      const photoGeo = new THREE.PlaneGeometry(PHOTO_SIZE.w, PHOTO_SIZE.h);
+
+      // ── 动态读取原图宽高比，杜绝挤压形变 ──
+      let imgAspect = 1.3; // 默认后备比例
+      if(tex.image && tex.image.width && tex.image.height){
+        imgAspect = tex.image.width / tex.image.height;
+      }
+
+      // 创建 1×1 单位平面——实际比例由 scale 动态控制
+      const photoGeo = new THREE.PlaneGeometry(1, 1);
       const photoMat = new THREE.MeshBasicMaterial({
         map: tex,
         side: THREE.DoubleSide,
@@ -5832,6 +5844,13 @@ function initParticleThreeJS(){
         depthWrite: false,
       });
       const mesh = new THREE.Mesh(photoGeo, photoMat);
+
+      // ── 按原图比例缩放，保证不变形 ──
+      //     基准尺寸 0.75：高为 0.75 世界单位，宽按比例自适应
+      const BASE_HEIGHT = 0.75;
+      mesh.scale.set(imgAspect * BASE_HEIGHT, BASE_HEIGHT, 1);
+      // 储存宽高比供后续弹射放大时使用
+      mesh.userData = { idx: idx, aspect: imgAspect, baseHeight: BASE_HEIGHT };
 
       // 球体腰部轨道坐标：60° 黄金夹角分布在 y≈0 平面上
       const phi   = Math.PI / 2;                         // 赤道面 (y≈0)
@@ -5845,7 +5864,9 @@ function initParticleThreeJS(){
       // 让平面面朝球心（lookAt 原点）
       mesh.lookAt(0, 0, 0);
 
-      mesh.userData = { idx: idx, basePos: basePos.clone(), theta: theta };
+      mesh.userData.idx = idx;
+      mesh.userData.basePos = basePos.clone();
+      mesh.userData.theta = theta;
       particleScene.add(mesh);
       particlePhotoMeshes[idx] = mesh;
       particlePhotoOrbits[idx] = { basePos: basePos.clone(), theta: theta };
@@ -5875,14 +5896,22 @@ function particleAnimate(){
   if(!particleChamberActive) return;
   particleAnimId = requestAnimationFrame(particleAnimate);
 
-  // 差速插值因子：扩散快(0.08)，凝聚慢(0.03)
-  const lerpSpeed = (particleTargetFactor > particleCurrentFactor) ? 0.08 : 0.03;
+  // 差速插值因子：大幅提速，扩散 0.15，凝聚 0.15（极速响应，去拖泥带水感）
+  const lerpSpeed = 0.15;
   particleCurrentFactor += (particleTargetFactor - particleCurrentFactor) * lerpSpeed;
 
-  // 旋转插值（球体旋转用较快速度，坍缩回蛋糕用慢速锁死）
-  const rotSpeed = (particleTargetFactor > 0.3) ? 0.06 : 0.02;
+  // 旋转插值：全线 0.12（蛋糕与球体转换瞬间完成）
+  const rotSpeed = 0.12;
   particleRotationX += (particleTargetRotationX - particleRotationX) * rotSpeed;
   particleRotationY += (particleTargetRotationY - particleRotationY) * rotSpeed;
+
+  // ── 动态摆动映射：实时读取 handXRaw 偏移量，映射到粒子系统 Y 轴旋转 ──
+  const swingTarget = (particleHandXRaw - 0.5) * 5.0; // X偏移 → 旋转角度，扩大5倍让摆动更明显
+  particleSwingTargetY += (swingTarget - particleSwingTargetY) * 0.18; // 极速追随手部
+  // 仅在非盲盒锁定状态下将摆动合并到旋转
+  if(!particleBlindBoxLocked){
+    particlePoints.rotation.y += (particleSwingTargetY - particlePoints.rotation.y) * 0.18;
+  }
 
   const positions = particlePoints.geometry.attributes.position.array;
   const cf = particleCurrentFactor;
@@ -5896,71 +5925,92 @@ function particleAnimate(){
   }
   particlePoints.geometry.attributes.position.needsUpdate = true;
 
-  // 整体旋转
+  // 整体旋转（摆动由上面单独控制；此处保留 rotationX 的赋值）
   particlePoints.rotation.x = particleRotationX;
-  particlePoints.rotation.y = particleRotationY;
+  // rotation.y 由上方动态摆动映射接管，不再直接赋值 particleRotationY
 
-  // ── 照片球体同步与可见性 ──
-  const inSphere = cf > 0.5; // 球体过半才算"处于球体形态"
+  // ── 照片球体同步与可见性（盲盒虚化逻辑） ──
+  const inSphere = cf > 0.5;
   for(let i = 0; i < PHOTO_COUNT; i++){
     const mesh = particlePhotoMeshes[i];
     if(!mesh) continue;
     const orbit = particlePhotoOrbits[i];
     const mat = mesh.material;
 
-    // 蛋糕形态 → 隐藏/收缩到原点内部；球体形态 → 可见
-    const targetOpacity = (inSphere && particleActivePhoto !== i) ? 0.9
-                        : (particleActivePhoto === i) ? 0.9
-                        : (cf > 0.2 ? cf * 0.7 : 0);
-    mat.opacity += (targetOpacity - mat.opacity) * 0.06;
+    if(particleBlindBoxLocked){
+      // 盲盒锁定状态：activeTarget 照片全不透明（由 animateBlindBox 单独控制），其余照片骤降至 0.05
+      if(particleActivePhoto !== i){
+        mat.opacity += (0.05 - mat.opacity) * 0.2;
+      }
+    } else {
+      const targetOpacity = (inSphere && particleActivePhoto !== i) ? 0.9
+                          : (particleActivePhoto === i) ? 0.9
+                          : (cf > 0.2 ? cf * 0.7 : 0);
+      mat.opacity += (targetOpacity - mat.opacity) * 0.12; // 提速
+    }
     mesh.visible = mat.opacity > 0.02;
 
-    // 被抓取的照片跳过轨道计算
-    if(particleActivePhoto === i) continue;
+    // ── 全时轨道跟随：盲盒锁定时目标照片跳过轨道；释放后所有照片统一插值飞回 ──
+    const isTargetPhoto = (particleActivePhoto === i);
+    const isReturning   = !particleBlindBoxLocked && particlePhotoGrabProgress > 0.005;
 
-    // 轨道位置随粒子球旋转
+    // 盲盒锁定时目标照片完全跳过轨道（由下方弹射块接管）；释放后不再跳过
+    if(particleBlindBoxLocked && isTargetPhoto) continue;
+
     const bp = orbit.basePos;
     const rotatedPos = bp.clone();
     rotatedPos.applyAxisAngle(new THREE.Vector3(1,0,0), particleRotationX);
-    rotatedPos.applyAxisAngle(new THREE.Vector3(0,1,0), particleRotationY);
-    mesh.position.copy(rotatedPos);
-    // 面朝球心
+    rotatedPos.applyAxisAngle(new THREE.Vector3(0,1,0), particleSwingTargetY * 0.6);
+
+    if(isReturning){
+      // ── 释放后飞回轨道：带抛物线弧线 ──
+      const fp = particlePhotoGrabProgress;
+      const arcLift = Math.sin(fp * Math.PI) * 1.8;
+      const lerpTarget = rotatedPos.clone().add(new THREE.Vector3(0, arcLift * 0.25, -arcLift * 0.6));
+      mesh.position.lerp(lerpTarget, 0.16);
+    } else {
+      // 常态平滑跟随轨道
+      mesh.position.lerp(rotatedPos, 0.14);
+    }
+
     mesh.lookAt(0, 0, 0);
   }
 
-  // ── 捏合抓取动画：推到眼前 / 复位 ──
-  const GRAB_TARGET_Z = 5.5;  // 推到眼前的 Z 位置
-  if(particleActivePhoto !== null){
+  // ── 数字盲盒弹射 + 释放飞回轨道（含抛物线回弹） ──
+  const GRAB_TARGET_Z = 5.5;
+  if(particleBlindBoxLocked && particleActivePhoto !== null){
+    // ═══ 盲盒锁定：弹射到眼前 ═══
     const mesh = particlePhotoMeshes[particleActivePhoto];
     if(mesh){
-      // 插值 progress
-      particlePhotoGrabProgress += (1 - particlePhotoGrabProgress) * 0.08;
+      particlePhotoGrabProgress += (1 - particlePhotoGrabProgress) * 0.22;
       const p = particlePhotoGrabProgress;
-      // 推到摄像机正前方，居中
-      mesh.position.lerp(new THREE.Vector3(0, 0, GRAB_TARGET_Z), p * 0.5);
-      // 正对屏幕（looking at camera）
+      const parabolaY = Math.sin(p * Math.PI) * 0.6;
+      mesh.position.lerp(new THREE.Vector3(0, parabolaY, GRAB_TARGET_Z), p * 0.7);
       mesh.lookAt(particleCamera.position);
-      // 放大一点
-      const s = 1 + p * 1.8;
-      mesh.scale.set(s, s, 1);
-      // 其余照片 + 粒子透明虚化
-      for(let i = 0; i < PHOTO_COUNT; i++){
-        if(i === particleActivePhoto || !particlePhotoMeshes[i]) continue;
-        particlePhotoMeshes[i].material.opacity = Math.max(0.08, particlePhotoMeshes[i].material.opacity * 0.9);
-      }
-      particlePoints.material.opacity += (0.15 - particlePoints.material.opacity) * 0.04;
+      const aspect = mesh.userData.aspect || 1.3;
+      const baseH = mesh.userData.baseHeight || 0.75;
+      const scaleFactor = 1 + p * 2.4;
+      mesh.scale.set(aspect * baseH * scaleFactor, baseH * scaleFactor, 1);
+      const mat = mesh.material;
+      mat.opacity += (0.95 - mat.opacity) * 0.25;
     }
+    particlePoints.material.opacity += (0.06 - particlePoints.material.opacity) * 0.15;
   } else {
-    // 无抓取 → 复位 progress
-    particlePhotoGrabProgress += (0 - particlePhotoGrabProgress) * 0.06;
-    if(particlePhotoGrabProgress < 0.01) particlePhotoGrabProgress = 0;
-    // 恢复粒子透明度
-    particlePoints.material.opacity += (0.9 - particlePoints.material.opacity) * 0.03;
-    // 照片缩放恢复
+    // ═══ 非锁定态：释放后衰减 progress + 粒子/照片极速恢复 ═══
+    particlePhotoGrabProgress += (0 - particlePhotoGrabProgress) * 0.2;
+    if(particlePhotoGrabProgress < 0.005) particlePhotoGrabProgress = 0;
+
+    // 粒子闪电恢复满亮度（~0.2s）
+    particlePoints.material.opacity += (0.9 - particlePoints.material.opacity) * 0.2;
+
+    // 所有照片比例+透明度复位（轨道位置由上方循环统一接管）
     for(let i = 0; i < PHOTO_COUNT; i++){
       const mesh = particlePhotoMeshes[i];
       if(!mesh) continue;
-      mesh.scale.lerp(new THREE.Vector3(1,1,1), 0.06);
+      const aspect = mesh.userData.aspect || 1.3;
+      const baseH  = mesh.userData.baseHeight || 0.75;
+      mesh.scale.lerp(new THREE.Vector3(aspect * baseH, baseH, 1), 0.15);
+      mesh.material.opacity += (0.9 - mesh.material.opacity) * 0.2;
     }
   }
 
@@ -5973,17 +6023,20 @@ function particleAnimate(){
   particleRenderer.render(particleScene, particleCamera);
 }
 
-// ===== 手势 → 状态映射（清晰阈值 + 边沿拦截） =====
+// ===== 手势 → 状态映射（极速数字盲盒选图 + 全状态物理同步） =====
 // 手势定义：
-//   ✋ 张开手掌 (avgExtension > 1.25) → 扩散为球形 + 开启手掌翻转旋转（拦截握拳）
-//   ✊ 紧握拳头 (avgExtension < 1.06) → 坍缩为蛋糕 + 锁定标准正前视图（拦截扩散和旋转）
-//   中间地带 → 保持当前方向，不做大动作
-// 手掌平展判断依据：手指伸直度（指尖/指根到手腕距离比值）
+//   ✋ 张开手掌 → 扩散球体 + 动态摆动映射
+//   ✊ 握拳 → 坍缩蛋糕 + 锁定正前
+//   数字 1-3 → 盲盒触发：随机选图 + 弹射放大 + 景深虚化
+// 手掌 X 轴偏移 → 映射粒子系统 Y 旋转（实时物理跟随）
+// ── 手指计数算法：【关节Y轴高度硬拦截】──
+//   食指/中指/无名指/小指：tip.y < pip.y → 伸出
+//   大拇指：|thumbTip.x - indexMcp.x| > 阈值 → 伸出
 function updateGestureState(handData){
   if(!handData || handData.handedness === 'None'){
     particleHandLostCounter++;
     if(particleHandLostCounter > 60){
-      particleTargetFactor = 0; // 无人手 → 回蛋糕
+      particleTargetFactor = 0;
       particleTargetRotationX = 0;
       particleTargetRotationY = 0;
       particlePrevGesture = null;
@@ -5995,141 +6048,157 @@ function updateGestureState(handData){
   const landmarks = handData.landmarks;
   const wrist = landmarks[0];
 
-  // 判断张手/握拳：五指指尖到手腕距离 / 指根到手腕距离
-  const fingerTips = [4,8,12,16,20]; // 拇指尖、食指尖、中指尖、无名指尖、小指尖
-  const fingerMCP  = [2,5,9,13,17];   // 对应指根关节
-  let totalExtension = 0;
-  for(let j = 0; j < 5; j++){
-    const tip = landmarks[fingerTips[j]];
-    const mcp = landmarks[fingerMCP[j]];
-    const tipToWrist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y, tip.z - wrist.z);
-    const mcpToWrist = Math.hypot(mcp.x - wrist.x, mcp.y - wrist.y, mcp.z - wrist.z);
-    totalExtension += tipToWrist / Math.max(mcpToWrist, 0.01);
+  // ═══════════════════════════════════════════
+  // 1. 关节Y轴高度硬拦截：四指判定（食指/中指/无名指/小指）
+  //    指尖 Y < 对应PIP关节 Y → 该手指为"伸出"
+  //    映射：tip[8,12,16,20] vs pip[6,10,14,18]
+  // ═══════════════════════════════════════════
+  const fingerDefs = [
+    { tip: 8,  pip: 6,  name: 'index'    },  // 食指
+    { tip: 12, pip: 10, name: 'middle'   },  // 中指
+    { tip: 16, pip: 14, name: 'ring'     },  // 无名指
+    { tip: 20, pip: 18, name: 'pinky'    },  // 小指
+  ];
+
+  let extendedCount = 0;
+  const fingerStates = [false, false, false, false]; // 四指各自状态
+
+  for(let i = 0; i < fingerDefs.length; i++){
+    const tipY = landmarks[fingerDefs[i].tip].y;
+    const pipY = landmarks[fingerDefs[i].pip].y;
+    // 【核心硬拦截】：指尖在 PIP 关节上方（Y 值更小）才算伸出
+    // MediaPipe 坐标系 Y 轴朝下，所以 tipY < pipY 表示指尖高于关节
+    if(tipY < pipY){
+      extendedCount++;
+      fingerStates[i] = true;
+    }
   }
-  const avgExtension = totalExtension / 5;
 
-  // ── 清晰阈值判断 + 边沿切换 ──
-  const OPEN_THRESHOLD  = 1.25;  // > 此值 = 明确张开
-  const FIST_THRESHOLD  = 1.06;  // < 此值 = 明确握拳
+  // ═══════════════════════════════════════════
+  // 2. 大拇指独立判定：X轴水平距离硬拦截
+  //    |thumbTip(4).x - indexMcp(5).x| > 0.045 → 大拇指伸出
+  // ═══════════════════════════════════════════
+  const thumbTip = landmarks[4];
+  const indexMcp = landmarks[5];
+  const thumbSpreadX = Math.abs(thumbTip.x - indexMcp.x);
+  const THUMB_OPEN_THRESHOLD = 0.045;
+  const isThumbExtended = thumbSpreadX > THUMB_OPEN_THRESHOLD;
 
-  const isOpenPalm = avgExtension > OPEN_THRESHOLD;
-  const isFist     = avgExtension < FIST_THRESHOLD;
+  if(isThumbExtended){
+    extendedCount++;
+  }
 
-  // 切换动效：张开 → 扩散为球 (targetFactor → 1)
+  // ═══════════════════════════════════════════
+  // 3. 清晰分界判定（基于硬拦截计数，杜绝中间模糊态）
+  //    fingerCount = 0 (全握拳) | 1 | 2 | 3 | 4 | 5 (全张开)
+  // ═══════════════════════════════════════════
+  const fingerCount = extendedCount; // 精确整数 0-5，无浮点数模糊
+
+  const isOpenPalm = (fingerCount === 5);        // 五指全伸 = 明确张开
+  const isFist     = (fingerCount === 0);        // 零指伸出 = 明确握拳
+  const isDigit    = (fingerCount >= 1 && fingerCount <= 3); // 数字手势 1-3
+
+  // 存储用于 avgExtension 兼容（用 fingerCount/5 替代旧 ratio）
+  const avgExtensionCompat = fingerCount / 5; // 0.0 ~ 1.0 阶梯值
+
+  // ── 手腕 X 偏移量（用于动态摆动映射） ──
+  particleHandXRaw = wrist.x;
+
+  // ── 盲盒锁定释放：手势变回张开 → 解锁并重置 ──
+  if(particleBlindBoxLocked && isOpenPalm){
+    particleBlindBoxLocked = false;
+    particleActivePhoto = null;
+    particlePhotoGrabProgress = 0;
+    particleBlindBoxFingerCount = 0;
+  }
+
+  // ── 状态切换（仅在非锁定状态下改变 targetFactor） ──
+  if(!particleBlindBoxLocked){
+    if(isOpenPalm){
+      particleTargetFactor = 1;
+    }
+    if(isFist){
+      particleTargetFactor = 0;
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  // 4. 数字 1-3 盲盒触发（硬中断：Math.random 立即执行）
+  // ═══════════════════════════════════════════
+  particleBlindBoxFingerCount = fingerCount;
+
+  if(!particleBlindBoxLocked && !particleBlindBoxJustTriggered && isDigit){
+    // 边沿触发：立即执行随机抽取并锁定
+    let poolStart;
+    if(fingerCount === 1) poolStart = 0;      // 照片 1-2
+    else if(fingerCount === 2) poolStart = 2;  // 照片 3-4
+    else poolStart = 4;                        // fingerCount === 3 → 照片 5-6
+
+    const idx = poolStart + Math.floor(Math.random() * 2); // 二选一，立即随机
+    particleActivePhoto = idx;
+    particleBlindBoxLocked = true;
+    particleBlindBoxJustTriggered = true;
+    particlePhotoGrabProgress = 0; // 重置弹射进度 → 动画循环以 0.2 速度极速插值
+  }
+
+  // 防重复触发重置：当回到 isOpenPalm 时清除防抖标记
   if(isOpenPalm){
-    particleTargetFactor = 1;
-    // 仅在球体状态下允许手掌旋转（>0.5因子时启用旋转映射）
+    particleBlindBoxJustTriggered = false;
   }
 
-  // 切换动效：握拳 → 坍缩为蛋糕 (targetFactor → 0)
-  if(isFist){
-    particleTargetFactor = 0;
-  }
-
-  // ── 边沿检测：从张开→握拳切换时，强制锁定旋转归零 ──
+  // ── 边沿：从张开→握拳时锁定旋转归零 ──
   if(isFist && particlePrevGesture === 'open'){
-    // 刚握拳：立刻锁死旋转到标准正前视图
     particleTargetRotationX = 0;
     particleTargetRotationY = 0;
   }
 
-  // ── 手掌倾斜 → 球体旋转（仅当当前处于球体/过渡态时启用） ──
-  if(particleTargetFactor === 1 || particleCurrentFactor > 0.3){
-    const midFinger = landmarks[9]; // 中指指根作为手掌方向参考
+  // ── 手掌倾斜 → 球体旋转（仅当处于球体/过渡态且未锁定时启用） ──
+  if(!particleBlindBoxLocked && (particleTargetFactor === 1 || particleCurrentFactor > 0.3)){
+    const midFinger = landmarks[9];
     const dx = midFinger.x - wrist.x;
     const dy = midFinger.y - wrist.y;
     particleTargetRotationY = dx * 6;
     particleTargetRotationX = -dy * 4 + 0.2;
   }
-  // 当 targetFactor=0（已经要回到蛋糕），不再写入旋转目标，让动画循环插值归零
 
-  // 记录当前手势用于边沿检测
+  // ── 记录手势边沿 ──
   if(isOpenPalm && particlePrevGesture !== 'open'){
     particlePrevGesture = 'open';
   } else if(isFist && particlePrevGesture !== 'fist'){
     particlePrevGesture = 'fist';
-  } else if(!isOpenPalm && !isFist){
-    // 中间地带不改变 prevGesture
   }
 
-  // 更新状态栏
+  // ═══════════════════════════════════════════
+  // 5. 状态栏 & 提示面板（硬中断即时更新）
+  // ═══════════════════════════════════════════
   const statusText = document.getElementById('particleStatusText');
   const hint = document.getElementById('particleGestureHint');
   if(statusText){
-    if(particleActivePhoto !== null){
-      statusText.textContent = '🤏 捏合抓取照片 #' + (particleActivePhoto+1) + ' — 放大至眼前 ✦';
+    if(particleBlindBoxLocked && particleActivePhoto !== null){
+      statusText.textContent = '🎯 数字 ' + fingerCount + ' 盲盒 — 照片 #' + (particleActivePhoto+1) + ' 弹射至眼前 ✦';
     } else if(isOpenPalm){
-      statusText.textContent = '🖐 张开手掌 — 粒子扩散为立体球型 ✨';
+      statusText.textContent = '🖐 五指全张开 — 球体旋转 ✨';
     } else if(isFist){
-      statusText.textContent = '👊 握拳 — 粒子凝聚为三层蛋糕 🎂';
+      statusText.textContent = '👊 零指握拳 — 凝聚蛋糕 🎂';
+    } else if(isDigit){
+      statusText.textContent = '🔢 数字 ' + fingerCount + ' — 盲盒二选一！';
     } else {
-      statusText.textContent = '🤚 中间手势 — 保持当前状态…';
+      statusText.textContent = '🤚 ' + fingerCount + ' 指伸出 — 等待手势…';
     }
   }
   if(hint){
-    if(particleActivePhoto !== null){
-      hint.innerHTML = '🤏 <b>捏合抓取中</b> — 照片放大至眼前<br>👐 松开手指 — 照片复位轨道';
+    if(particleBlindBoxLocked && particleActivePhoto !== null){
+      hint.innerHTML = '🎯 <b>数字 ' + fingerCount + ' 盲盒已触发</b> — 照片 #' + (particleActivePhoto+1) + ' 放大至眼前<br>🖐 五指张开 — 释放照片，重置盲盒';
     } else if(isOpenPalm){
-      hint.innerHTML = '🖐 <b>张开手掌</b> — 扩散球体 + 旋转视角<br>🤏 拇指食指捏合 — 抓取照片';
+      hint.innerHTML = '🖐 <b>五指全张开</b> — 扩散球体 + 摆手旋转<br>🔢 伸出1/2/3根手指 — 数字盲盒二选一';
     } else if(isFist){
-      hint.innerHTML = '🖐 张开手掌 — 扩散球体 + 旋转视角<br>👊 <b>握拳</b> — 坍缩蛋糕 + 锁定正前视图';
+      hint.innerHTML = '👊 <b>零指握拳</b> — 坍缩蛋糕<br>🖐 五指张开 — 扩散球体';
+    } else if(isDigit){
+      hint.innerHTML = '🔢 <b>数字 ' + fingerCount + ' 识别锁定</b> — 随机从对应照片池二选一';
     } else {
-      hint.innerHTML = '🖐 张开手掌 — 扩散球体<br>👊 握拳 — 凝聚蛋糕<br>🤏 拇指食指捏合 — 抓取照片';
+      hint.innerHTML = '🖐 全张开 — 球体 | 👊 全握 — 蛋糕 | 🔢 1-3指 — 盲盒';
     }
   }
-
-  // ── 捏合抓取逻辑：拇指尖(4) ↔ 食指尖(8) 距离 ──
-  const thumbTip = landmarks[4];
-  const indexTip = landmarks[8];
-  const pinchDist = Math.hypot(
-    thumbTip.x - indexTip.x,
-    thumbTip.y - indexTip.y,
-    thumbTip.z - indexTip.z
-  );
-  const isPinching = pinchDist < PHOTO_PINCH_THRESHOLD;
-
-  // 捏合边沿检测
-  if(isPinching && !particleLastPinchState && particleCurrentFactor > 0.3){
-    // 刚捏合 → 射线检测哪张照片被"选中"
-    const hitIdx = raycastPhoto(indexTip);
-    if(hitIdx !== -1){
-      particleActivePhoto = hitIdx;
-    }
-  }
-
-  // 松开捏合 → 复位
-  if(!isPinching && particleLastPinchState && particleActivePhoto !== null){
-    particleActivePhoto = null;
-  }
-
-  particleLastPinchState = isPinching;
-}
-
-// ===== 射线碰撞检测（食指 → 3D 照片平面） =====
-function raycastPhoto(indexTipLandmark){
-  if(!particleCamera || particlePhotoMeshes.length === 0) return -1;
-
-  // 食指尖屏幕坐标：MediaPipe 的 x,y 是 0~1 归一化，y 轴朝下
-  const mouse = new THREE.Vector2(
-    (indexTipLandmark.x - 0.5) * 2,   // → -1..1
-    -(indexTipLandmark.y - 0.5) * 2   // 翻转 Y
-  );
-
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(mouse, particleCamera);
-
-  // 只检测可见的照片 mesh
-  const visibleMeshes = particlePhotoMeshes.filter(function(m){
-    return m && m.visible && m.material.opacity > 0.1;
-  });
-  if(visibleMeshes.length === 0) return -1;
-
-  const intersects = raycaster.intersectObjects(visibleMeshes);
-  if(intersects.length > 0){
-    const idx = intersects[0].object.userData.idx;
-    if(typeof idx === 'number') return idx;
-  }
-  return -1;
 }
 
 // ===== MediaPipe Hands 初始化 =====
@@ -6154,6 +6223,12 @@ function initMediaPipeHands(){
       const handedness = results.multiHandedness[0] ? results.multiHandedness[0].label : 'Right';
       updateGestureState({ landmarks: lm, handedness: handedness });
     } else {
+      // ── 无手检测：立即释放盲盒，照片飞回轨道 ──
+      if(particleBlindBoxLocked){
+        particleBlindBoxLocked = false;
+        particleActivePhoto = null;
+        particleBlindBoxFingerCount = 0;
+      }
       updateGestureState(null);
     }
   });
@@ -6242,9 +6317,14 @@ function closeParticleChamber(){
   particlePrevGesture = null;
   particleActivePhoto = null;
   particlePhotoGrabProgress = 0;
-  particleLastPinchState = false;
   particleTargetFactor = 0;
   particleCurrentFactor = 0;
+  // 盲盒系统变量重置
+  particleBlindBoxLocked = false;
+  particleBlindBoxFingerCount = 0;
+  particleBlindBoxJustTriggered = false;
+  particleHandXRaw = 0.5;
+  particleSwingTargetY = 0;
 
   // 清理照片 mesh
   particlePhotoMeshes.forEach(function(m){
