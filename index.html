@@ -2288,6 +2288,7 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  object-fit: cover; border-radius: 12px; z-index: 1;
 }
 .image-hint-box.has-image { border-style: solid; border-color: rgba(255,255,255,.2); }
+.image-hint-box.has-image input[type="file"] { pointer-events: none; z-index: 0; }
 .image-hint-box.has-image .upload-prompt { display: none; }
 .image-hint-box .hint-preview { transition: transform 0.3s ease; }
 .image-hint-box.has-image:hover { cursor: pointer; }
@@ -2324,6 +2325,8 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 }
 .image-lightbox.show { display: flex; }
 @keyframes lightboxIn { 0%{opacity:0} 100%{opacity:1} }
+@keyframes lightboxOut { 0%{opacity:1} 100%{opacity:0} }
+.image-lightbox.fade-out { animation: lightboxOut .25s ease-in forwards; }
 .image-lightbox .lightbox-close {
  position: absolute; top: 20px; right: 24px;
  width: 44px; height: 44px; border-radius: 50%;
@@ -3527,7 +3530,7 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  <div class="quiz-panel" id="quizPanel">
  <div class="quiz-upper">
    <div class="quiz-upper-left">
-     <div class="image-hint-box" id="imageHintBox" title="点击上传线索图，上传后可点击放大">
+     <div class="image-hint-box" id="imageHintBox" title="点击上传线索图，上传后可点击放大" onclick="onHintBoxClick(event)">
        <div class="upload-prompt"><span class="prompt-icon">📷</span>➕ 上传线索图</div>
        <input type="file" accept="image/*" id="hintFileInput" onchange="handleHintImage(event)">
        <img class="hint-preview" id="hintPreview" src="" alt="线索图" style="display:none">
@@ -3555,7 +3558,7 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  </div>
 </div>
 <!-- 全屏线索图灯箱 -->
-<div class="image-lightbox" id="imageLightbox" onclick="closeLightbox()">
+<div class="image-lightbox" id="imageLightbox">
  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
  <img class="lightbox-img" id="lightboxImg" src="" alt="线索图放大" onclick="event.stopPropagation()">
 </div>
@@ -3768,24 +3771,24 @@ function updateTreasureCount(){
 // ===== 答题弹窗系统 =====
 // ===== 6 个趣味谜题 + 礼物 SVG + 标语 =====
 const quizPuzzles=[
- {q:'今天李大设计师最想对谁说生日快乐呢？🧩',a:'小范',emoji:'🚀',
- svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g1g" cx="40%" cy="30%"><stop offset="0%" stop-color="#ffe8a0"/><stop offset="100%" stop-color="#f0a030"/></radialGradient><radialGradient id="g1p" cx="40%" cy="35%"><stop offset="0%" stop-color="#b8a9e8"/><stop offset="50%" stop-color="#e8b8d8"/><stop offset="100%" stop-color="#c8d8f0"/></radialGradient></defs><circle cx="95" cy="70" r="45" fill="none" stroke="rgba(200,200,240,.4)" stroke-width="3" stroke-dasharray="8,4"/><circle cx="95" cy="70" r="30" fill="url(#g1p)" opacity=".8"/><circle cx="95" cy="70" r="16" fill="#fff" opacity=".2"/><ellipse cx="100" cy="50" rx="22" ry="18" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2.5"/><rect x="55" y="75" width="80" height="55" rx="10" fill="rgba(255,255,255,.15)" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/><line x1="95" y1="50" x2="95" y2="75" stroke="rgba(255,255,255,.35)" stroke-width="2"/><circle cx="95" cy="35" r="10" fill="#ffd700"/><circle cx="95" cy="35" r="6" fill="#fff" opacity=".5"/><ellipse cx="60" cy="65" rx="8" ry="5" fill="rgba(255,255,255,.25)"/><ellipse cx="130" cy="65" rx="8" ry="5" fill="rgba(255,255,255,.25)"/><text x="95" y="118" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.5)" font-family="sans-serif">🚀 小范号</text></svg>',
- slogan:'小范号太空船，正式对接今日生日轨道！祝小范生日快乐！'},
- {q:'我们第一次一起看日落（或某次共同出行）是在哪座城市？🧩',a:'大连',emoji:'🌊',
- svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="sg" cx="50%" cy="30%"><stop offset="0%" stop-color="#ffb74d"/><stop offset="100%" stop-color="#e65100"/></radialGradient></defs><path d="M20,90 Q50,78 80,92 Q110,82 140,90 Q170,80 180,92 L180,130 Q150,120 120,130 Q80,118 40,130 Z" fill="rgba(100,160,220,.25)"/><path d="M20,100 Q60,88 100,102 Q140,90 180,100" fill="none" stroke="rgba(140,200,240,.35)" stroke-width="2"/><circle cx="100" cy="82" r="22" fill="url(#sg)" opacity=".8"/><circle cx="100" cy="82" r="14" fill="#ffe082" opacity=".5"/><circle cx="60" cy="120" r="12" stroke="rgba(180,200,220,.4)" stroke-width="2" fill="none"/><circle cx="80" cy="120" r="12" stroke="rgba(180,200,220,.4)" stroke-width="2" fill="none"/><line x1="60" y1="120" x2="80" y2="120" stroke="rgba(255,255,255,.3)" stroke-width="2"/><rect x="85" y="112" width="5" height="16" rx="2" fill="rgba(255,255,255,.3)"/><circle cx="50" cy="105" r="3" fill="#ffd700" opacity=".7"/><circle cx="70" cy="100" r="3" fill="#ffd700" opacity=".7"/><circle cx="90" cy="95" r="3" fill="#ffd700" opacity=".7"/></svg>',
- slogan:'那天的落日掉进了海里，愿小范的未来像星空一样闪耀，生日快乐！'},
- {q:'小范不开心或嘴馋时，最容易被哪种超好吃的甜品一秒哄好？🧩',a:'小蛋糕',emoji:'🍰',
- svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="c2g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ff9a9e"/><stop offset="100%" stop-color="#fecfef"/></linearGradient></defs><polygon points="100,20 130,75 70,75" fill="url(#c2g)" stroke="rgba(255,200,200,.5)" stroke-width="2"/><circle cx="100" cy="50" r="16" fill="#ff4757" opacity=".9"/><circle cx="100" cy="50" r="6" fill="#fff" opacity=".4"/><rect x="55" y="75" width="90" height="45" rx="8" fill="rgba(255,255,255,.2)" stroke="rgba(255,200,200,.4)" stroke-width="1.5"/><rect x="55" y="75" width="90" height="8" rx="4" fill="rgba(255,255,255,.35)"/><ellipse cx="55" y="110" rx="6" ry="10" fill="rgba(255,180,60,.6)"/><ellipse cx="145" y="110" rx="6" ry="10" fill="rgba(255,180,60,.6)"/><ellipse cx="55" y="105" rx="4" ry="6" fill="rgba(255,140,20,.5)"/><ellipse cx="145" y="105" rx="4" ry="6" fill="rgba(255,140,20,.5)"/></svg>',
- slogan:'今日份甜分已超标，祝最强吃货小范生日快乐，吃喝不愁！'},
- {q:'在我们的小宇宙里，谁才是掌握最高指挥权的绝对老大？🧩',a:'小范老大',emoji:'👑',
- svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><ellipse cx="90" cy="110" rx="35" ry="30" fill="rgba(255,220,180,.25)"/><circle cx="90" cy="80" r="28" fill="rgba(255,240,220,.3)" stroke="rgba(255,255,255,.3)" stroke-width="2"/><ellipse cx="82" cy="76" rx="4" ry="5" fill="rgba(80,60,40,.4)"/><ellipse cx="98" cy="76" rx="4" ry="5" fill="rgba(80,60,40,.4)"/><ellipse cx="90" cy="86" rx="2" ry="1.5" fill="rgba(255,150,150,.5)"/><path d="M70,58 L60,20 L75,45 L90,15 L105,45 L120,20 L110,58Z" fill="#ffd700" opacity=".85" stroke="rgba(255,255,255,.4)" stroke-width="1"/><circle cx="90" cy="18" r="5" fill="#fff" opacity=".6"/><line x1="140" y1="80" x2="160" y2="40" stroke="rgba(255,255,255,.4)" stroke-width="2" stroke-linecap="round"/><circle cx="162" cy="38" r="6" fill="rgba(255,200,255,.5)"/></svg>',
- slogan:'最高指挥司令：今天小范老大必须开心一百分！生日快乐！'},
- {q:'李大设计师偷偷观察过，小范最常挂在嘴边的心灵禅是什么？🧩',a:'好哦',emoji:'📡',
- svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><rect x="60" y="50" width="80" height="70" rx="16" fill="rgba(100,120,140,.25)" stroke="rgba(180,200,220,.35)" stroke-width="2"/><rect x="70" y="60" width="60" height="35" rx="6" fill="rgba(0,200,180,.2)"/><text x="100" y="80" text-anchor="middle" font-size="13" fill="rgba(0,255,200,.7)" font-family="monospace">好 哦</text><line x1="100" y1="50" x2="100" y2="20" stroke="rgba(255,255,255,.35)" stroke-width="2"/><circle cx="100" cy="18" r="6" fill="rgba(255,200,255,.4)"/><circle cx="100" cy="10" r="10" fill="none" stroke="rgba(255,180,200,.3)" stroke-width="1"/><circle cx="100" cy="2" r="16" fill="none" stroke="rgba(255,160,180,.2)" stroke-width="1"/><circle cx="100" cy="-6" r="22" fill="none" stroke="rgba(255,140,160,.1)" stroke-width="1"/></svg>',
- slogan:'收到呼叫！小范的"好哦"是全宇宙最治愈的应答暗号，祝天天好心情！'},
- {q:'终极宝藏解锁暗号：小范是全世界最什么的可爱鬼？🧩',a:'天下第一',emoji:'🏆',
- svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="c6g" cx="40%" cy="35%"><stop offset="0%" stop-color="#b8a9e8"/><stop offset="50%" stop-color="#e8b8d8"/><stop offset="100%" stop-color="#c8d8f0"/></radialGradient></defs><ellipse cx="70" cy="95" rx="55" ry="28" fill="rgba(200,180,230,.15)" stroke="rgba(255,255,255,.25)" stroke-width="2"/><circle cx="70" cy="75" r="32" fill="url(#c6g)" opacity=".7"/><circle cx="70" cy="75" r="16" fill="rgba(255,255,255,.15)"/><path d="M55,68 Q70,40 85,68" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="2"/><rect x="125" y="70" width="8" height="40" rx="3" fill="rgba(255,255,255,.2)"/><ellipse cx="129" cy="70" rx="10" ry="16" fill="rgba(180,200,240,.25)"/><circle cx="129" cy="58" r="8" fill="rgba(255,255,255,.2)"/><line x1="150" y1="80" x2="170" y2="50" stroke="rgba(255,255,255,.2)" stroke-width="2"/><circle cx="172" cy="48" r="10" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="1"/><text x="100" y="150" text-anchor="middle" font-size="8" fill="rgba(255,255,200,.4)">🎂</text></svg>',
- slogan:'恭喜通关！小范获得了由李大设计师颁发的全宇宙第一个"超有趣好朋友终身奖"，生日成就解锁！✨'},
+ {q:'✨ 猜一猜，今天的礼物会是什么吧？',a:'U盘',match:['u盘','USB','usb','优盘'],emoji:'💾',
+ svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g1u" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a0b8e0"/><stop offset="100%" stop-color="#6080c0"/></linearGradient></defs><rect x="55" y="40" width="90" height="110" rx="12" fill="url(#g1u)" stroke="rgba(255,255,255,.3)" stroke-width="2"/><rect x="65" y="55" width="70" height="40" rx="4" fill="rgba(255,255,255,.15)"/><circle cx="100" cy="42" r="5" fill="rgba(255,255,255,.3)"/><rect x="85" y="120" width="30" height="18" rx="3" fill="rgba(255,255,255,.2)"/><text x="100" y="170" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)">💾 U盘</text></svg>',
+ slogan:'第一份礼物：随身携带的记忆宝盒，生日快乐小范！'},
+ {q:'✨ 猜一猜，今天的礼物会是什么吧？',a:'水杯',match:['杯子','保温杯','马克杯'],emoji:'🥤',
+ svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g2c" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a8d8ea"/><stop offset="100%" stop-color="#6ab8d8"/></linearGradient></defs><rect x="65" y="35" width="70" height="100" rx="14" fill="url(#g2c)" stroke="rgba(255,255,255,.3)" stroke-width="2"/><rect x="55" y="50" width="90" height="18" rx="7" fill="rgba(255,255,255,.12)"/><rect x="55" y="88" width="90" height="18" rx="7" fill="rgba(255,255,255,.12)"/><ellipse cx="100" cy="55" rx="22" ry="8" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1.5"/><path d="M135,60 Q150,70 135,90" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2"/><text x="100" y="170" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)">🥤 水杯</text></svg>',
+ slogan:'第二份礼物：愿你每天都能喝到甜甜的水，健康满满生日快乐！'},
+ {q:'✨ 猜一猜，今天的礼物会是什么吧？',a:'头戴式耳机',match:['耳机','蓝牙耳机','头戴耳机'],emoji:'🎧',
+ svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g3h" cx="40%" cy="35%"><stop offset="0%" stop-color="#d0a0e0"/><stop offset="100%" stop-color="#8040a0"/></radialGradient></defs><rect x="50" y="45" width="100" height="8" rx="4" fill="rgba(255,255,255,.2)"/><ellipse cx="55" cy="78" rx="22" ry="30" fill="url(#g3h)" stroke="rgba(255,255,255,.25)" stroke-width="2"/><ellipse cx="145" cy="78" rx="22" ry="30" fill="url(#g3h)" stroke="rgba(255,255,255,.25)" stroke-width="2"/><ellipse cx="55" cy="78" rx="10" ry="14" fill="rgba(255,255,255,.1)"/><ellipse cx="145" cy="78" rx="10" ry="14" fill="rgba(255,255,255,.1)"/><text x="100" y="170" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)">🎧 头戴式耳机</text></svg>',
+ slogan:'第三份礼物：戴上它，隔绝世界的喧嚣，只听好音乐的拥抱！'},
+ {q:'✨ 猜一猜，今天的礼物会是什么吧？',a:'卡包',match:['卡盒','证件包'],emoji:'💳',
+ svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g4c" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c8a878"/><stop offset="100%" stop-color="#8a6030"/></linearGradient></defs><rect x="40" y="50" width="120" height="80" rx="10" fill="url(#g4c)" stroke="rgba(255,255,255,.25)" stroke-width="2"/><rect x="48" y="60" width="104" height="26" rx="3" fill="rgba(255,255,255,.12)"/><rect x="48" y="92" width="104" height="26" rx="3" fill="rgba(255,255,255,.12)"/><line x1="48" y1="86" x2="152" y2="86" stroke="rgba(255,255,255,.08)" stroke-width="1"/><text x="100" y="170" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)">💳 卡包</text></svg>',
+ slogan:'第四份礼物：把所有的卡都好好收纳，生活也要井井有条哦！'},
+ {q:'✨ 猜一猜，今天的礼物会是什么吧？',a:'护眼仪',match:['眼部按摩仪','眼罩','按摩仪'],emoji:'👀',
+ svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g5e" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e0c8f0"/><stop offset="100%" stop-color="#a080c0"/></linearGradient></defs><ellipse cx="100" cy="80" rx="75" ry="40" fill="url(#g5e)" stroke="rgba(255,255,255,.3)" stroke-width="2"/><ellipse cx="70" cy="78" rx="20" ry="14" fill="rgba(30,20,40,.35)"/><ellipse cx="130" cy="78" rx="20" ry="14" fill="rgba(30,20,40,.35)"/><circle cx="72" cy="76" r="5" fill="rgba(255,255,255,.2)"/><circle cx="132" cy="76" r="5" fill="rgba(255,255,255,.2)"/><line x1="100" y1="60" x2="100" y2="50" stroke="rgba(255,255,255,.3)" stroke-width="2"/><text x="100" y="170" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)">👀 护眼仪</text></svg>',
+ slogan:'第五份礼物：闭上眼睛的那一刻，世界都温柔了，放松一下吧！'},
+ {q:'✨ 猜一猜，今天的礼物会是什么吧？',a:'手持挂烫机',match:['挂烫机','熨衣器','熨斗','烫衣机'],emoji:'👔',
+ svg:'<svg viewBox="0 0 200 180" style="width:160px;height:144px" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g6s" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e8c0a0"/><stop offset="100%" stop-color="#c08060"/></linearGradient></defs><rect x="60" y="55" width="40" height="60" rx="8" fill="url(#g6s)" stroke="rgba(255,255,255,.25)" stroke-width="2"/><path d="M100,55 L160,35 L160,135 L100,115Z" fill="rgba(200,180,160,.3)" stroke="rgba(255,255,255,.2)" stroke-width="1.5"/><ellipse cx="130" cy="85" rx="15" ry="25" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.15)" stroke-width="1"/><line x1="60" y1="55" x2="100" y2="55" stroke="rgba(255,255,255,.3)" stroke-width="2"/><circle cx="50" cy="50" r="3" fill="rgba(255,255,255,.4)"/><text x="100" y="170" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)">👔 手持挂烫机</text></svg>',
+ slogan:'第六份礼物：从此每一天都笔挺出发，光芒万丈！✨'},
 ];
 
 // 俏皮错误文案库
@@ -3831,10 +3834,10 @@ function showQuizOverlay(idx){
  reward.classList.remove('show');
  inputArea.style.display='flex';
  title.textContent=`谜题 ${idx+1} / 6`;
- // 填充问题文本并重置线索图
+ // 填充问题文本并回显该关卡已存的线索图（不重置，保留持久化数据）
  var questionEl=document.getElementById('quizQuestion');
  if(questionEl) questionEl.textContent=quizPuzzles[idx].q;
- resetHintImage();
+ restoreHintImageForLevel();
 
  // 如果该盒子已累计≥3次错误，直接常驻救援弹窗
  if(getCurrentWrongCount()>=3){ showHelpPopup(); }
@@ -3843,7 +3846,26 @@ function showQuizOverlay(idx){
  setTimeout(()=>input.focus(),400);
 }
 
-// ===== 线索图上传 + 灯箱放大 =====
+// ===== 线索图上传 + 灯箱放大（按关卡持久化 + 解耦点击上传/放大） =====
+function getHintStorageKey(){ return 'hint_img_level_'+currentBoxIdx; }
+
+function restoreHintImageForLevel(){
+ var box=document.getElementById('imageHintBox');
+ var preview=document.getElementById('hintPreview');
+ var fileInput=document.getElementById('hintFileInput');
+ var saved=localStorage.getItem(getHintStorageKey());
+ if(saved){
+   // 该关卡已存过图 → 回显
+   if(preview){ preview.src=saved; preview.style.display='block'; }
+   if(box) box.classList.add('has-image');
+ } else {
+   // 该关卡没存过图 → 清空状态
+   if(fileInput) fileInput.value='';
+   if(preview){ preview.style.display='none'; preview.src=''; }
+   if(box) box.classList.remove('has-image');
+ }
+}
+
 function resetHintImage(){
  var box=document.getElementById('imageHintBox');
  var preview=document.getElementById('hintPreview');
@@ -3851,41 +3873,66 @@ function resetHintImage(){
  if(fileInput) fileInput.value='';
  if(preview){ preview.style.display='none'; preview.src=''; }
  if(box) box.classList.remove('has-image');
+ localStorage.removeItem(getHintStorageKey());
 }
+
+function onHintBoxClick(e){
+ var box=document.getElementById('imageHintBox');
+ // 已上传图片 → 点击放大
+ if(box && box.classList.contains('has-image')){
+   var src=localStorage.getItem(getHintStorageKey());
+   if(src) openLightbox(src);
+   return;
+ }
+ // 未上传 → input[type=file] 覆盖在 box 上方，正常点击即可触发
+}
+
 function handleHintImage(event){
  var file=event.target.files[0];
  if(!file) return;
  var reader=new FileReader();
  reader.onload=function(e){
+   var base64=e.target.result;
    var preview=document.getElementById('hintPreview');
    var box=document.getElementById('imageHintBox');
-   if(preview){ preview.src=e.target.result; preview.style.display='block'; }
+   if(preview){ preview.src=base64; preview.style.display='block'; }
    if(box) box.classList.add('has-image');
-   // 绑定点击放大
-   if(preview){
-     preview.style.cursor='pointer';
-     preview.onclick=function(ev){ ev.stopPropagation(); openLightbox(e.target.result); };
-   }
+   // 按关卡 ID 持久化到 localStorage
+   localStorage.setItem(getHintStorageKey(), base64);
  };
  reader.readAsDataURL(file);
 }
+
 function openLightbox(src){
  var lb=document.getElementById('imageLightbox');
  var img=document.getElementById('lightboxImg');
  if(img) img.src=src;
- if(lb) lb.classList.add('show');
+ if(lb){ lb.classList.remove('fade-out'); lb.classList.add('show'); }
+ // 点击遮罩空白处关闭
+ if(lb) lb.onclick=function(ev){
+   if(ev.target===lb){ closeLightbox(); }
+ };
 }
+
 function closeLightbox(){
  var lb=document.getElementById('imageLightbox');
- if(lb) lb.classList.remove('show');
+ if(!lb) return;
+ lb.classList.add('fade-out');
+ var onEnd=function(){
+   lb.classList.remove('show','fade-out');
+   lb.removeEventListener('animationend',onEnd);
+ };
+ lb.addEventListener('animationend',onEnd);
 }
 
 function submitQuizAnswer(){
  const input=document.getElementById('quizInput');
- const answer=input.value.trim();
+ const answer=input.value.trim().toLowerCase();
  if(!answer) return;
  const puzzle=quizPuzzles[currentBoxIdx];
- if(answer===puzzle.a){
+ // 模糊匹配：先精确匹配主谜底，再匹配兼容别名数组
+ const isCorrect = (answer===puzzle.a.toLowerCase()) || (puzzle.match && puzzle.match.some(function(w){ return answer===w.toLowerCase() || answer.includes(w.toLowerCase()) || w.toLowerCase().includes(answer); }));
+ if(isCorrect){
  // 答对：清除该盒子的错误记录
  const wc=getWrongCounts(); delete wc['box'+currentBoxIdx]; saveWrongCounts(wc);
  dissolveInputAndShowReward();
@@ -4403,6 +4450,16 @@ function initWarmClouds(){
 })();
 
 updateTreasureCount();
+
+// ===== 页面初始化：自动回显 localStorage 中保存的线索图（按关卡 ID） =====
+(function initHintImageRestore(){
+ var saved=localStorage.getItem(getHintStorageKey());
+ if(!saved) return;
+ var preview=document.getElementById('hintPreview');
+ var box=document.getElementById('imageHintBox');
+ if(preview){ preview.src=saved; preview.style.display='block'; }
+ if(box) box.classList.add('has-image');
+ })();
 
 // (openEnvelope 和 skipToPlanet 已移至脚本顶部)
 
