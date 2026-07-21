@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -4340,14 +4340,34 @@ const skinList=[
  {key:'amber',name:'琥珀日落',class:'skin-amber'},
  {key:'digital',name:'数码科技',class:'skin-digital'},
 ];
-
-// 获取相册存储
-function getAlbumData(){ try{ return JSON.parse(localStorage.getItem('cloudAlbum')||'{}'); }catch(e){ return {}; } }
-function saveAlbumData(d){ localStorage.setItem('cloudAlbum',JSON.stringify(d)); }
-
-function renderCloudAlbum(){
+    // IndexedDB 相册存储（永久保存，突破 localStorage 5MB 限制）
+    const ALBUM_DB_NAME='CloudAlbumDB', ALBUM_DB_VER=1, ALBUM_STORE='photos';
+    function openAlbumDB(){
+     return new Promise((resolve,reject)=>{
+     const req=indexedDB.open(ALBUM_DB_NAME,ALBUM_DB_VER);
+     req.onupgradeneeded=function(e){
+     const db=e.target.result;
+     if(!db.objectStoreNames.contains(ALBUM_STORE)) db.createObjectStore(ALBUM_STORE);
+     };
+     req.onsuccess=function(e){ resolve(e.target.result); };
+     req.onerror=function(e){ reject(e.target.error); };
+     });
+    }
+    async function getAlbumData(){ try{ const db=await openAlbumDB(); return new Promise((resolve)=>{ const tx=db.transaction(ALBUM_STORE,'readonly'); const req=tx.objectStore(ALBUM_STORE).get('cloudAlbum'); req.onsuccess=function(){ resolve(req.result||{}); }; req.onerror=function(){ resolve({}); }; tx.oncomplete=function(){ db.close(); }; }); }catch(e){ try{ return JSON.parse(localStorage.getItem('cloudAlbum')||'{}'); }catch(e2){ return {}; } } }
+    async function saveAlbumData(d){ try{ const db=await openAlbumDB(); return new Promise((resolve,reject)=>{ const tx=db.transaction(ALBUM_STORE,'readwrite'); tx.objectStore(ALBUM_STORE).put(d,'cloudAlbum'); tx.oncomplete=function(){ db.close(); resolve(); }; tx.onerror=function(e){ db.close(); reject(e.target.error); }; }); }catch(e){ try{ localStorage.setItem('cloudAlbum',JSON.stringify(d)); }catch(e2){} } }
+    // 启动时自动从 localStorage 迁移旧数据到 IndexedDB
+    (async function migrateAlbum(){
+     const existing=await getAlbumData();
+     if(Object.keys(existing).length>0){ localStorage.removeItem('cloudAlbum'); return; }
+     try{
+     const old=JSON.parse(localStorage.getItem('cloudAlbum')||'{}');
+     if(Object.keys(old).length>0) await saveAlbumData(old);
+     }catch(e){}
+     localStorage.removeItem('cloudAlbum');
+    })();
+async function renderCloudAlbum(){
  const grid=document.getElementById('albumGrid'); if(!grid) return;
- const data=getAlbumData(); grid.innerHTML='';
+ const data=await getAlbumData(); grid.innerHTML='';
  albumAges.forEach((item,idx)=>{
  const key='age_'+item.age;
  const saved=data[key]||{};
@@ -4372,20 +4392,20 @@ function renderCloudAlbum(){
 }
 
 // 触发图片上传
-function triggerUpload(age){
+async function triggerUpload(age){
  const input=document.createElement('input');
  input.type='file'; input.accept='image/*';
  input.onchange=function(e){
  const file=e.target.files[0]; if(!file) return;
  const reader=new FileReader();
- reader.onload=function(ev){
+ reader.onload=async function(ev){
  const base64=ev.target.result;
- const data=getAlbumData();
+ const data=await getAlbumData();
  const key='age_'+age;
  if(!data[key]) data[key]={};
  data[key].img=base64;
  if(!data[key].skin) data[key].skin='aurora';
- saveAlbumData(data);
+ await saveAlbumData(data);
  renderCloudAlbum();
  };
  reader.readAsDataURL(file);
@@ -4394,9 +4414,9 @@ function triggerUpload(age){
 }
 
 // 清除照片
-function clearPhoto(age){
- const data=getAlbumData(); const key='age_'+age;
- if(data[key]){ delete data[key].img; saveAlbumData(data); }
+async function clearPhoto(age){
+ const data=await getAlbumData(); const key='age_'+age;
+ if(data[key]){ delete data[key].img; await saveAlbumData(data); }
  // 淡出动画后重新渲染
  const frame=document.getElementById('frame-'+age);
  if(frame){ frame.style.opacity='0'; frame.style.transform='scale(.95)'; }
@@ -4404,12 +4424,12 @@ function clearPhoto(age){
 }
 
 // 切换相框皮肤
-function changeSkin(age,skinKey){
- const data=getAlbumData();
+async function changeSkin(age,skinKey){
+ const data=await getAlbumData();
  const key='age_'+age;
  if(!data[key]) data[key]={};
  data[key].skin=skinKey;
- saveAlbumData(data);
+ await saveAlbumData(data);
  // 更新视觉：先清除旧皮肤再添加新皮肤
  const frame=document.getElementById('frame-'+age);
  if(frame){
