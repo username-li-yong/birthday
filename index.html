@@ -936,8 +936,8 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 }
 .supply-box .box-icon { font-size: 36px; margin-bottom: 4px; transition: all 0.4s; }
 .supply-box .box-label { font-size: 11px; color: rgba(255,255,255,.45); font-family: 'ZCOOL KuaiLe', cursive; }
-.supply-box.locked { opacity: .35; cursor: not-allowed; filter: grayscale(.6); }
-.supply-box.locked .box-lock { position: absolute; font-size: 16px; top: 8px; right: 10px; color: rgba(255,255,255,.3); }
+.supply-box.locked { opacity: .45; cursor: not-allowed; filter: grayscale(.45); position: relative; }
+.supply-box.locked .box-lock { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); font-size: 10px; color: rgba(255,255,255,.35); white-space: nowrap; font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: .5px; }
 .supply-box.today { border-color: rgba(255,215,0,.5); box-shadow: 0 0 20px rgba(255,215,0,.25),0 0 40px rgba(255,180,0,.1); animation: boxShake 1.5s ease-in-out infinite; }
 @keyframes boxShake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(2deg)} 40%{transform:rotate(-2deg)} 60%{transform:rotate(1deg)} 80%{transform:rotate(-1deg)} }
 .supply-box.claimed { border-color: rgba(255,215,0,.35); background: radial-gradient(ellipse at center, rgba(255,215,0,.08), transparent 70%); opacity: .9; }
@@ -1981,8 +1981,8 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 }
 .supply-box .box-icon { font-size: 36px; margin-bottom: 4px; transition: all 0.4s; }
 .supply-box .box-label { font-size: 11px; color: rgba(255,255,255,.45); font-family: 'ZCOOL KuaiLe', cursive; }
-.supply-box.locked { opacity: .35; cursor: not-allowed; filter: grayscale(.6); }
-.supply-box.locked .box-lock { position: absolute; font-size: 16px; top: 8px; right: 10px; color: rgba(255,255,255,.3); }
+.supply-box.locked { opacity: .45; cursor: not-allowed; filter: grayscale(.45); position: relative; }
+.supply-box.locked .box-lock { position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); font-size: 10px; color: rgba(255,255,255,.35); white-space: nowrap; font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: .5px; }
 .supply-box.today { border-color: rgba(255,215,0,.5); box-shadow: 0 0 20px rgba(255,215,0,.25),0 0 40px rgba(255,180,0,.1); animation: boxShake 1.5s ease-in-out infinite; }
 @keyframes boxShake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(2deg)} 40%{transform:rotate(-2deg)} 60%{transform:rotate(1deg)} 80%{transform:rotate(-1deg)} }
 .supply-box.claimed { border-color: rgba(255,215,0,.35); background: radial-gradient(ellipse at center, rgba(255,215,0,.08), transparent 70%); opacity: .9; }
@@ -3413,7 +3413,10 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  </div>
  <div class="tab-body" id="tab-checkin">
  <div class="card-title-main" style="font-size:22px;margin-bottom:12px">📅 每日星际补给箱</div>
- <div class="card-subtitle" style="margin-bottom:10px">连续签到 6 天，集齐全部生日祝福碎片！</div>
+ <div class="card-subtitle" style="margin-bottom:4px">⏳ 时间锁已开启 · 每日零点解锁一个补给箱</div>
+ <div class="card-subtitle" style="margin-bottom:10px;font-size:12px;color:rgba(255,255,255,.45)">
+   <span id="unlockProgress">—</span> · 7/25 ~ 7/30 倒计时中
+ </div>
  <div class="boxes-grid" id="boxesGrid"></div>
  <div class="fortune-3d-card" id="fortuneCard">
  <div class="fortune-3d-inner" id="fortune3dInner">
@@ -3490,7 +3493,7 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
            <button class="reset-led-btn" id="resetLedBtn" onclick="resetLedCount()" title="重置扭蛋数">↻</button>
          </div>
          <div class="date-plate">
-           <div class="date-text">✦ 2026-06-28 ✦</div>
+           <div class="date-text" id="dateText">✦ ----.--.-- ✦</div>
          </div>
        </div>
        <!-- 右下：机械出球口 -->
@@ -3729,14 +3732,35 @@ function switchTab(event, tab){
  if(tab==='egg') initGachapon();
 }
 
-// ===== 日期锁已解除：所有箱子默认可解锁 =====
-function isBoxUnlocked(boxIndex){ return true; }
+// ===== 时间锁：每日零点解锁一个签到箱（7/25~7/30 共6天） =====
+function getBoxUnlockDate(boxIndex){
+ const now=new Date();
+ const thisYear=now.getFullYear();
+ const birthday=new Date(thisYear,6,30); // 7月30日
+ // Box 0 在生日前5天解锁(7/25), Box 5 在生日当天解锁(7/30)
+ const daysBefore=5-boxIndex;
+ const unlockDate=new Date(birthday);
+ unlockDate.setDate(birthday.getDate()-daysBefore);
+ unlockDate.setHours(0,0,0,0);
+ return unlockDate;
+}
+function isBoxUnlocked(boxIndex){
+ const now=new Date();
+ const unlockDate=getBoxUnlockDate(boxIndex);
+ return now>=unlockDate;
+}
+function getBoxUnlockLabel(boxIndex){
+ const unlockDate=getBoxUnlockDate(boxIndex);
+ const M=unlockDate.getMonth()+1;
+ const D=unlockDate.getDate();
+ return M+'/'+D+' 零点解锁';
+}
 
 // ===== 清除旧 mood 状态（fortune 保留跨页面持久化，签到联动用） =====
 localStorage.removeItem('mood'); localStorage.removeItem('moodNote');
 // fortune 不在此清除——由 doTimeRewind 手动重置，restoreFortune 负责跨刷新恢复
 
-// ===== 签到补给箱渲染（6个全部可点） =====
+// ===== 签到补给箱渲染（时间锁：每日零点解锁一个） =====
 function getCheckinState(){ try{ return JSON.parse(localStorage.getItem('boxState')||'[]'); }catch(e){ return Array(6).fill(false); } }
 function saveCheckinState(s){ localStorage.setItem('boxState',JSON.stringify(s)); }
 
@@ -3749,6 +3773,10 @@ function renderSupplyBoxes(){
  if(state[i]){
  d.classList.add('claimed');
  d.innerHTML=`<span class="box-icon">${quizPuzzles[i].emoji}</span><span class="box-label">DAY ${i+1}</span><span class="paw-mark">🐾</span>`;
+ } else if(!isBoxUnlocked(i)){
+ d.classList.add('locked');
+ d.innerHTML=`<span class="box-icon">🔒</span><span class="box-label">DAY ${i+1}</span><span class="box-lock">⏳ ${getBoxUnlockLabel(i)}</span>`;
+ d.title='尚未到解锁时间，请耐心等待哦~';
  } else {
  d.classList.add('today');
  d.innerHTML=`<span class="box-icon">📦</span><span class="box-label">DAY ${i+1}</span>`;
@@ -3760,6 +3788,21 @@ function renderSupplyBoxes(){
 function updateTreasureCount(){
  const cnt=getCheckinState().filter(Boolean).length;
  const el=document.getElementById('treasureCount'); if(el) el.textContent=cnt;
+ updateUnlockProgress();
+}
+
+// 更新补给箱解锁进度文字
+function updateUnlockProgress(){
+ const el=document.getElementById('unlockProgress'); if(!el) return;
+ const state=getCheckinState();
+ const now=new Date();
+ let unlocked=0, totalUnlockable=0;
+ for(let i=0;i<6;i++){
+ if(state[i]) unlocked++;
+ if(isBoxUnlocked(i)) totalUnlockable++;
+ }
+ const nextLocked=-1;
+ el.textContent=`🔓 已解锁 ${totalUnlockable}/6 个补给箱` + (unlocked > 0 ? ` | ✅ 已领取 ${unlocked} 个` : '');
 }
 
 // ===== 答题弹窗系统 =====
@@ -3802,6 +3845,12 @@ function resetWrongCounts(){ localStorage.removeItem('wrongCounts'); }
 
 function openSupplyBox(el,idx,emoji){
  if(el.classList.contains('claimed')) return;
+ if(!isBoxUnlocked(idx)){
+ // 时间未到，提示用户
+ el.classList.add('reject');
+ setTimeout(function(){ el.classList.remove('reject'); }, 500);
+ return;
+ }
  currentBoxIdx=idx; currentBoxEl=el; currentBoxEmoji=emoji;
  showQuizOverlay(idx);
 }
@@ -4120,6 +4169,7 @@ function doTimeRewind(){
  localStorage.removeItem('wrongCounts');
  localStorage.removeItem('mood'); localStorage.removeItem('moodNote');
  localStorage.removeItem('fortune');
+ localStorage.removeItem('last_draw_week');
  sessionStorage.removeItem('lastUnlocked');
  // 无需 reload —— 直接重新渲染所有状态
  document.querySelectorAll('.supply-box').forEach(function(b){ b.classList.remove('opening','reject'); });
@@ -5175,6 +5225,27 @@ function launchPhase3(overlay, ps) {
   tick();
 }
 
+// ===== 日期牌动态更新 =====
+function updateDatePlate(){
+  var el = document.getElementById('dateText');
+  if(!el) return;
+  var now = new Date();
+  var y = now.getFullYear();
+  var m = String(now.getMonth()+1).padStart(2,'0');
+  var d = String(now.getDate()).padStart(2,'0');
+  el.textContent = '✦ ' + y + '-' + m + '-' + d + ' ✦';
+}
+
+// ===== ISO 周计算：返回 "2026-W30" 格式（周一为周起始） =====
+function getISOWeekYear(date){
+  var d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  var dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return d.getUTCFullYear() + '-W' + String(weekNo).padStart(2,'0');
+}
+
 // ===== 星空扭蛋机 — 盲盒彩蛋系统 =====
 const prizes = [
   "李大设计师请吃火锅券一张 🍲",
@@ -5205,6 +5276,7 @@ function getRandomPrizeIndex(){
 }
 
 function initGachapon(){
+  updateDatePlate();
   var dome = document.getElementById('gachaponDome');
   if(!dome) return;
   if(dome.children.length === 0){
@@ -5303,26 +5375,22 @@ switchTab = function(event, tab){
 function spinGacha(){
   if(gachaActive) return;
 
-  // ===== 自然周时间锁（开发中，暂关闭） =====
-  var WEEKLY_LOCK = false; // ← 改为 true 即可开启每周限制
+  // ===== 自然周时间锁：每周可抽一次，周日结束后重置 =====
+  var WEEKLY_LOCK = true; // ✅ 已开启：每周限抽一次
   if(WEEKLY_LOCK){
-    var lastDrawRaw = localStorage.getItem('last_draw_time');
-    if(lastDrawRaw){
-      var lastDrawTime = Number(lastDrawRaw);
-      var lastDate = new Date(lastDrawTime);
-      var dayOfWeek = lastDate.getDay() === 0 ? 7 : lastDate.getDay();
-      var distanceToSunday = 7 - dayOfWeek;
-      var sundayDate = new Date(lastDate);
-      sundayDate.setDate(lastDate.getDate() + distanceToSunday);
-      sundayDate.setHours(23, 59, 59, 999);
-      var weekEndTime = sundayDate.getTime();
-
-      if(Date.now() <= weekEndTime){
+    var lastWeek = localStorage.getItem('last_draw_week');
+    if(lastWeek){
+      var now = new Date();
+      var thisWeek = getISOWeekYear(now);
+      if(lastWeek === thisWeek){
+        // 本周已抽过
         showWeekLockToast();
         return;
       }
     }
-    localStorage.setItem('last_draw_time', Date.now());
+    // 记录本周已抽
+    var now2 = new Date();
+    localStorage.setItem('last_draw_week', getISOWeekYear(now2));
   }
 
   gachaActive = true;
@@ -5638,7 +5706,7 @@ function showWeekLockToast(){
   if(existing && existing.parentNode) existing.remove();
   var toast = document.createElement('div');
   toast.className = 'gacha-toast';
-  toast.textContent = '🎉 这个周的盲盒特权已经领过啦！下周一 00:00 刷新后可以开启哦～';
+  toast.textContent = '🎉 本周的盲盒特权已经领过啦！下周一 00:00 刷新后可以开启哦～';
   document.body.appendChild(toast);
   setTimeout(function(){
     if(toast.parentNode) toast.remove();
@@ -5994,8 +6062,8 @@ function particleAnimate(){
     } else {
       const targetOpacity = (inSphere && particleActivePhoto !== i) ? 0.9
                           : (particleActivePhoto === i) ? 0.9
-                          : (cf > 0.2 ? cf * 0.7 : 0);
-      mat.opacity += (targetOpacity - mat.opacity) * 0.12; // 提速
+                          : 0; // 蛋糕状态下照片完全不可见，仅球体状态才显示
+      mat.opacity += (targetOpacity - mat.opacity) * 0.12;
     }
     mesh.visible = mat.opacity > 0.02;
 
@@ -6045,21 +6113,21 @@ function particleAnimate(){
     }
     particlePoints.material.opacity += (0.06 - particlePoints.material.opacity) * 0.15;
   } else {
-    // ═══ 非锁定态：释放后衰减 progress + 粒子/照片极速恢复 ═══
+    // ═══ 非锁定态：释放后衰减 progress + 粒子极速恢复 ═══
     particlePhotoGrabProgress += (0 - particlePhotoGrabProgress) * 0.2;
     if(particlePhotoGrabProgress < 0.005) particlePhotoGrabProgress = 0;
 
     // 粒子闪电恢复满亮度（~0.2s）
     particlePoints.material.opacity += (0.9 - particlePoints.material.opacity) * 0.2;
 
-    // 所有照片比例+透明度复位（轨道位置由上方循环统一接管）
+    // 所有照片比例复位（轨道位置由上方循环统一接管；透明度由前面的球体逻辑控制，此处不再覆盖）
     for(let i = 0; i < PHOTO_COUNT; i++){
       const mesh = particlePhotoMeshes[i];
       if(!mesh) continue;
       const aspect = mesh.userData.aspect || 1.3;
       const baseH  = mesh.userData.baseHeight || 0.75;
       mesh.scale.lerp(new THREE.Vector3(aspect * baseH, baseH, 1), 0.15);
-      mesh.material.opacity += (0.9 - mesh.material.opacity) * 0.2;
+      // 透明度由上方 inSphere/cf 逻辑统一控制，此处不再强制推向 0.9
     }
   }
 
