@@ -3706,8 +3706,7 @@ function switchTab(event, tab){
 // ===== 日期锁已解除：所有箱子默认可解锁 =====
 function isBoxUnlocked(boxIndex){ return true; }
 
-// ===== 清除旧 localStorage 状态（开发/测试用） =====
-localStorage.removeItem('boxState');
+// ===== 清除旧 mood/fortune 状态（开发/测试用，boxState 保留用作签到联动） =====
 localStorage.removeItem('mood'); localStorage.removeItem('moodNote');
 localStorage.removeItem('fortune');
 
@@ -4069,7 +4068,7 @@ function restoreFortune(){
 
 // ===== 时空回溯 =====
 function doTimeRewind(){
- localStorage.removeItem('boxState');
+ localStorage.removeItem('boxState'); // 手动重置按钮，保留
  localStorage.removeItem('wrongCounts');
  localStorage.removeItem('mood'); localStorage.removeItem('moodNote');
  localStorage.removeItem('fortune');
