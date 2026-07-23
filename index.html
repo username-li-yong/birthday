@@ -940,8 +940,8 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 .supply-box.locked .box-lock { position: absolute; font-size: 16px; top: 8px; right: 10px; color: rgba(255,255,255,.3); }
 .supply-box.today { border-color: rgba(255,215,0,.5); box-shadow: 0 0 20px rgba(255,215,0,.25),0 0 40px rgba(255,180,0,.1); animation: boxShake 1.5s ease-in-out infinite; }
 @keyframes boxShake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(2deg)} 40%{transform:rotate(-2deg)} 60%{transform:rotate(1deg)} 80%{transform:rotate(-1deg)} }
-.supply-box.claimed { border-color: rgba(100,200,100,.35); background: rgba(100,200,100,.06); opacity: .8; }
-.supply-box.claimed .box-icon { color: #5fbf6e; }
+.supply-box.claimed { border-color: rgba(255,215,0,.35); background: radial-gradient(ellipse at center, rgba(255,215,0,.08), transparent 70%); opacity: .9; }
+.supply-box.claimed .box-icon { color: #ffd700; filter: drop-shadow(0 0 6px rgba(255,200,80,.4)); }
 .supply-box.claimed .paw-mark { position: absolute; bottom: 6px; right: 10px; font-size: 14px; }
 .supply-box.opening { animation: boxOpen 1s ease-out forwards; pointer-events: none; }
 @keyframes boxOpen { 0%{transform:scale(1)} 25%{transform:scale(1.2)} 40%{box-shadow:0 0 60px rgba(255,215,0,.8)} 70%{transform:scale(1.05)} 100%{transform:scale(1);box-shadow:0 0 10px rgba(100,200,100,.3)} }
@@ -1010,6 +1010,8 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 }
 .showcase-gift-img { width: 75%; height: 75%; object-fit: contain; position: relative; z-index: 1; margin-bottom: 10px; border-radius: 8px; cursor: pointer; transition: transform 0.3s ease; }
 .showcase-gift-img:hover { transform: scale(1.08); }
+.showcase-cell.just-unlocked { animation: giftJustUnlocked .6s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes giftJustUnlocked { 0%{transform:scale(.6); opacity:.3} 50%{transform:scale(1.06); opacity:1} 70%{transform:scale(.97)} 100%{transform:scale(1); opacity:1} }
 .album-divider { height: 2px; background: linear-gradient(90deg, transparent, rgba(180,140,100,.2), #d4af37, rgba(180,140,100,.2), transparent); margin: 30px 0 22px; }
 .album-title { font-size: 32px; font-weight: bold; text-align: center; color: #7a5038; font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: 4px; text-shadow: 0 1px 3px rgba(255,200,150,.2); }
 .album-subtitle { text-align: center; color: rgba(140,100,70,.5); font-size: 13px; margin: 6px 0 22px; font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: 1.5px; }
@@ -1983,8 +1985,8 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 .supply-box.locked .box-lock { position: absolute; font-size: 16px; top: 8px; right: 10px; color: rgba(255,255,255,.3); }
 .supply-box.today { border-color: rgba(255,215,0,.5); box-shadow: 0 0 20px rgba(255,215,0,.25),0 0 40px rgba(255,180,0,.1); animation: boxShake 1.5s ease-in-out infinite; }
 @keyframes boxShake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(2deg)} 40%{transform:rotate(-2deg)} 60%{transform:rotate(1deg)} 80%{transform:rotate(-1deg)} }
-.supply-box.claimed { border-color: rgba(100,200,100,.35); background: rgba(100,200,100,.06); opacity: .8; }
-.supply-box.claimed .box-icon { color: #5fbf6e; }
+.supply-box.claimed { border-color: rgba(255,215,0,.35); background: radial-gradient(ellipse at center, rgba(255,215,0,.08), transparent 70%); opacity: .9; }
+.supply-box.claimed .box-icon { color: #ffd700; filter: drop-shadow(0 0 6px rgba(255,200,80,.4)); }
 .supply-box.claimed .paw-mark { position: absolute; bottom: 6px; right: 10px; font-size: 14px; }
 .supply-box.opening { animation: boxOpen 1s ease-out forwards; pointer-events: none; }
 @keyframes boxOpen { 0%{transform:scale(1)} 25%{transform:scale(1.2)} 40%{box-shadow:0 0 60px rgba(255,215,0,.8)} 70%{transform:scale(1.05)} 100%{transform:scale(1);box-shadow:0 0 10px rgba(100,200,100,.3)} }
@@ -2053,6 +2055,8 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 }
 .showcase-gift-img { width: 75%; height: 75%; object-fit: contain; position: relative; z-index: 1; margin-bottom: 10px; border-radius: 8px; cursor: pointer; transition: transform 0.3s ease; }
 .showcase-gift-img:hover { transform: scale(1.08); }
+.showcase-cell.just-unlocked { animation: giftJustUnlocked .6s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes giftJustUnlocked { 0%{transform:scale(.6); opacity:.3} 50%{transform:scale(1.06); opacity:1} 70%{transform:scale(.97)} 100%{transform:scale(1); opacity:1} }
 .album-divider { height: 2px; background: linear-gradient(90deg, transparent, rgba(180,140,100,.2), #d4af37, rgba(180,140,100,.2), transparent); margin: 30px 0 22px; }
 .album-title { font-size: 32px; font-weight: bold; text-align: center; color: #7a5038; font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: 4px; text-shadow: 0 1px 3px rgba(255,200,150,.2); }
 .album-subtitle { text-align: center; color: rgba(140,100,70,.5); font-size: 13px; margin: 6px 0 22px; font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: 1.5px; }
@@ -2386,6 +2390,20 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 .rewind-btn:hover { background: rgba(255,255,255,.14); b order-color: rgba(255,255,255,.35); color: #fff; box-shadow: 0 0 18px rgba(200,180,255,.2); }
 .rewind-btn .rewind-tooltip { position: absolute; right: 50px; background: rgba(20,0,30,.85); color: rgba(255,255,255,.7); padding: 5px 12px; border-radius: 8px; font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .3s; font-family: 'ZCOOL KuaiLe', cursive; }
 .rewind-btn:hover .rewind-tooltip { opacity: 1; }
+
+/* === 礼物送达 toast === */
+.gift-toast {
+ position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+ z-index: 9999;
+ background: rgba(30,10,50,.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+ border: 1px solid rgba(255,215,0,.35); border-radius: 24px;
+ color: rgba(255,255,255,.9); padding: 12px 28px;
+ font-size: 15px; font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: 2px;
+ white-space: nowrap; pointer-events: none; opacity: 0;
+ transition: all .5s cubic-bezier(0.34,1.56,0.64,1);
+ box-shadow: 0 8px 40px rgba(0,0,0,.4), 0 0 30px rgba(255,200,100,.15);
+}
+.gift-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* === 运势 3D 翻转卡牌 — 法式毛玻璃金边 3:4 卡牌 === */
 .fortune-3d-card { perspective: 900px; margin-top: 14px; width: 100%; }
@@ -3535,6 +3553,14 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 <!-- 星空倒计时舞台 -->
 <div class="birthday-banner" id="birthdayBanner">✨ 小范，生日快乐！庆典舱已完全解锁！ ✨</div>
 
+<!-- 礼物送达 toast -->
+<div class="gift-toast" id="giftToast"></div>
+
+<!-- 时空回溯按钮 -->
+<button class="rewind-btn" id="rewindBtn" onclick="doTimeRewind()" title="一键清空签到">
+ ⏳<span class="rewind-tooltip">时空回溯 · 清空签到</span>
+</button>
+
 <script>
 const bodyEl = document.getElementById('bodyEl');
 
@@ -3722,7 +3748,7 @@ function renderSupplyBoxes(){
  const d=document.createElement('div'); d.className='supply-box';
  if(state[i]){
  d.classList.add('claimed');
- d.innerHTML=`<span class="box-icon">✅</span><span class="box-label">DAY ${i+1}</span><span class="paw-mark">🐾</span>`;
+ d.innerHTML=`<span class="box-icon">${quizPuzzles[i].emoji}</span><span class="box-label">DAY ${i+1}</span><span class="paw-mark">🐾</span>`;
  } else {
  d.classList.add('today');
  d.innerHTML=`<span class="box-icon">📦</span><span class="box-label">DAY ${i+1}</span>`;
@@ -3950,18 +3976,26 @@ function typewriterSlogan(el,text,cb){
 }
 function collectReward(){
  const state=getCheckinState(); state[currentBoxIdx]=true; saveCheckinState(state);
+ // 记录刚解锁的格子索引，供展柜入场动画使用
+ sessionStorage.setItem('lastUnlocked', currentBoxIdx);
  if(currentBoxEl){
  currentBoxEl.classList.remove('today','opening'); currentBoxEl.classList.add('claimed');
  currentBoxEl.innerHTML=`<span class="box-icon">${currentBoxEmoji}</span><span class="box-label">DAY ${currentBoxIdx+1}</span><span class="paw-mark">🐾</span>`;
  currentBoxEl.onclick=null;
  }
  updateTreasureCount(); renderBackpack();
- // 触发运势卡牌 3D 翻转揭晓
  drawFortune();
+ // 🎁 弹出 toast 提示
+ showGiftToast(currentBoxIdx);
  const reward=document.getElementById('quizReward');
  reward.style.transition='all .5s cubic-bezier(0.25,0.8,0.25,1)';
  reward.style.transform='scale(.3) translateX(40px) translateY(-20px)'; reward.style.opacity='0';
- setTimeout(()=>{ closeQuizOverlay(); },500);
+ // 延迟关闭弹窗 → 自动跳转展柜页
+ setTimeout(function(){
+ closeQuizOverlay();
+ // 500ms 后跳转到展柜
+ setTimeout(function(){ try { switchTab(null, 'backpack'); } catch(e){} }, 500);
+ }, 500);
 }
 function closeQuizOverlay(){
  const overlay=document.getElementById('quizOverlay');
@@ -4066,16 +4100,30 @@ function restoreFortune(){
  }catch(e){}
 }
 
+// ===== 礼物送达 toast =====
+function showGiftToast(idx){
+ var toast = document.getElementById('giftToast'); if(!toast) return;
+ var emoji = quizPuzzles[idx].emoji;
+ var labels = ['一','二','三','四','五','六'];
+ toast.innerHTML = emoji + ' 第' + labels[idx] + '份礼物已送达专属展柜 ✨';
+ toast.classList.add('show');
+ clearTimeout(toast._tid);
+ toast._tid = setTimeout(function(){ toast.classList.remove('show'); }, 2800);
+}
+
 // ===== 时空回溯 =====
 function doTimeRewind(){
+ if(!confirm('确定要重置所有签到进度吗？展柜中的礼物将暂时隐藏。')) return;
  localStorage.removeItem('boxState'); // 手动重置按钮，保留
  localStorage.removeItem('wrongCounts');
  localStorage.removeItem('mood'); localStorage.removeItem('moodNote');
  localStorage.removeItem('fortune');
- // 丝滑重新加载
- document.body.style.transition='opacity .4s';
- document.body.style.opacity='0';
- setTimeout(()=>{ location.reload(); },400);
+ sessionStorage.removeItem('lastUnlocked');
+ // 无需 reload —— 直接重新渲染所有状态
+ document.querySelectorAll('.supply-box').forEach(function(b){ b.classList.remove('opening','reject'); });
+ renderSupplyBoxes();
+ renderShowcase();
+ updateTreasureCount();
 }
 
 // ===== 心情投递 =====
@@ -4223,15 +4271,30 @@ function renderBackpack(){
 function renderShowcase(){
  const grid=document.getElementById('showcaseGrid'); if(!grid) return;
  const state=getCheckinState();
+ // 读取刚解锁的格子索引
+ var lastIdx = -1;
+ try { var v = sessionStorage.getItem('lastUnlocked'); if(v !== null) lastIdx = parseInt(v, 10); } catch(e) {}
  grid.innerHTML='';
  for(let i=0;i<6;i++){
  const cell=document.createElement('div'); cell.className='showcase-cell';
  if(state[i]){
  cell.innerHTML=`<div class="showcase-dome"></div><div class="glide-light"></div><img src="gift/${i+1}.jpg" class="showcase-gift-img" alt="礼物${i+1}" onclick="event.stopPropagation();openLightbox(this.src)" title="点击放大">`;
+ if(i === lastIdx){ cell.classList.add('just-unlocked'); }
  } else {
  cell.innerHTML=`<div class="showcase-dome"></div><div class="glide-light"></div><div class="gold-mist"></div><div class="empty-orbit"></div><div class="empty-star">🔮</div>`;
  }
  grid.appendChild(cell);
+ }
+ // 动画播完后清除标记
+ if(lastIdx >= 0){
+ setTimeout(function(){
+ var c = document.getElementById('showcaseGrid');
+ if(c){
+ var cells = c.querySelectorAll('.showcase-cell.just-unlocked');
+ cells.forEach(function(el){ el.classList.remove('just-unlocked'); });
+ }
+ sessionStorage.removeItem('lastUnlocked');
+ }, 700);
  }
 }
 
