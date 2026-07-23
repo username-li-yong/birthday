@@ -3834,8 +3834,9 @@ function showQuizOverlay(idx){
 }
 
 	// ====== sign_up 静态线索图（彻底废除 UGC 上传 / Supabase / IndexedDB / localStorage） ======
-	// 物理文件：/sign_up/1.bmp ~ /sign_up/6.bmp 对应第 1~6 关，其中 /sign_up/2.png 是唯一的 .png
-	var SIGN_UP_EXT = ['.bmp','.png','.bmp','.bmp','.bmp','.bmp']; // 索引 0~5 → 关卡 1~6
+	// 物理文件：/sign_up/1.png ~ /sign_up/6.png 对应第 1~6 关，已全部统一为 PNG
+	// 全部为 .png，已剔除移动端不兼容的 .bmp 格式
+	var SIGN_UP_EXT = ['.png','.png','.png','.png','.png','.png']; // 索引 0~5 → 关卡 1~6
 	function getSignUpHintSrc(idx){ return '/sign_up/' + (idx + 1) + SIGN_UP_EXT[idx]; }
 	// 第 idx 关弹窗打开时换图（idx: 0~5，由 showQuizOverlay 调用）
 	function loadSignUpHintForLevel(idx){
