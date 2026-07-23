@@ -3227,9 +3227,109 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
   0%{opacity:1;transform:translateX(-50%) translateY(0)}
   100%{opacity:0;transform:translateX(-50%) translateY(-12px)}
 }
+
+/* ===== 登录验证浮层 ===== */
+.login-overlay {
+ position: fixed; inset: 0; z-index: 10000;
+ background: radial-gradient(ellipse at center, rgba(10,5,20,.92) 0%, rgba(5,2,12,.97) 100%);
+ display: flex; align-items: center; justify-content: center;
+ transition: opacity 0.6s ease, visibility 0.6s ease;
+ backdrop-filter: blur(12px);
+}
+.login-overlay.hidden {
+ opacity: 0; pointer-events: none; visibility: hidden;
+}
+.login-card {
+ background: rgba(255,255,255,.04);
+ border: 1px solid rgba(255,215,0,.15);
+ border-radius: 24px;
+ padding: 40px 36px 32px;
+ text-align: center;
+ max-width: 400px; width: 90%;
+ box-shadow: 0 0 80px rgba(255,215,0,.06), 0 8px 40px rgba(0,0,0,.4);
+ backdrop-filter: blur(20px);
+ animation: loginCardIn 0.8s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes loginCardIn {
+ 0%{opacity:0;transform:translateY(30px) scale(.96)}
+ 100%{opacity:1;transform:translateY(0) scale(1)}
+}
+.login-title {
+ font-size: 22px; font-weight: 600; color: #ffd700;
+ font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: 2px;
+ margin-bottom: 8px;
+}
+.login-subtitle {
+ font-size: 13px; color: rgba(255,255,255,.45);
+ margin-bottom: 28px; font-family: 'ZCOOL KuaiLe', cursive;
+}
+.login-input-wrap {
+ display: flex; flex-direction: column; gap: 12px; align-items: center;
+}
+.login-input {
+ width: 100%; max-width: 280px;
+ padding: 12px 18px;
+ border-radius: 14px;
+ border: 1.5px solid rgba(255,215,0,.2);
+ background: rgba(255,255,255,.05);
+ color: #fff; font-size: 16px;
+ text-align: center; outline: none;
+ font-family: 'ZCOOL KuaiLe', cursive;
+ transition: all 0.3s;
+ letter-spacing: 1px;
+}
+.login-input:focus {
+ border-color: rgba(255,215,0,.6);
+ box-shadow: 0 0 24px rgba(255,215,0,.15), 0 0 4px rgba(255,215,0,.1) inset;
+}
+.login-input::placeholder { color: rgba(255,255,255,.2); }
+.login-btn {
+ padding: 11px 40px;
+ border-radius: 24px;
+ border: 1px solid rgba(255,215,0,.35);
+ background: linear-gradient(135deg, rgba(255,215,0,.15) 0%, rgba(255,180,0,.08) 100%);
+ color: #ffd700; font-size: 15px;
+ cursor: pointer;
+ font-family: 'ZCOOL KuaiLe', cursive;
+ letter-spacing: 2px;
+ transition: all 0.3s;
+}
+.login-btn:hover {
+ background: linear-gradient(135deg, rgba(255,215,0,.25) 0%, rgba(255,180,0,.15) 100%);
+ box-shadow: 0 0 30px rgba(255,215,0,.2);
+ transform: translateY(-1px);
+}
+.login-btn:active { transform: scale(.96); }
+.login-hint {
+ font-size: 12px; color: rgba(255,255,255,.25);
+ margin-top: 16px; font-family: 'ZCOOL KuaiLe', cursive;
+}
+.login-error {
+ font-size: 14px; color: #ff6b6b; margin-top: 8px;
+ min-height: 20px; opacity: 0; transition: opacity 0.3s;
+ font-family: 'ZCOOL KuaiLe', cursive;
+}
+.login-error.show { opacity: 1; animation: loginShake 0.5s ease-out; }
+@keyframes loginShake {
+ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(4px)}
+}
 </style>
 </head>
 <body id="bodyEl">
+
+<!-- ===== 登录验证浮层 ===== -->
+<div class="login-overlay" id="loginOverlay">
+ <div class="login-card">
+ <div class="login-title">🔐 星球身份验证</div>
+ <div class="login-subtitle">请输入星球主人的名字</div>
+ <div class="login-input-wrap">
+ <input class="login-input" id="loginInput" type="text" placeholder="输入你的名字..." autocomplete="off" onkeydown="if(event.key==='Enter')verifyLogin()">
+ <button class="login-btn" id="loginBtn" onclick="verifyLogin()">🚀 进入星球</button>
+ </div>
+ <div class="login-hint" id="loginHint">提示：输入正确的名字才能进入哦～</div>
+ <div class="login-error" id="loginError"></div>
+ </div>
+</div>
 
 <!-- ===== 粉紫星芒云朵背景装饰 ===== -->
 <div class="sky-stars" id="skyStars"></div>
@@ -3566,6 +3666,31 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 
 <script>
 const bodyEl = document.getElementById('bodyEl');
+
+// ===== 登录验证 =====
+var VALID_NAMES = ['范蓉宣', '李永胜'];
+
+function verifyLogin(){
+ var input = document.getElementById('loginInput');
+ var name = input.value.trim();
+ if(VALID_NAMES.indexOf(name) !== -1){
+ document.getElementById('loginOverlay').classList.add('hidden');
+ localStorage.setItem('loginVerified', 'true');
+ } else {
+ var err = document.getElementById('loginError');
+ err.textContent = '❌ 名字不对哦，再想想～';
+ err.classList.add('show');
+ input.value = '';
+ input.focus();
+ setTimeout(function(){ err.classList.remove('show'); }, 2000);
+ }
+}
+
+function checkLoginState(){
+ if(localStorage.getItem('loginVerified') === 'true'){
+ document.getElementById('loginOverlay').classList.add('hidden');
+ }
+}
 
 // ===== 核心入口函数（定义在最前，确保始终可用） =====
 function openEnvelope(){
@@ -4170,6 +4295,7 @@ function doTimeRewind(){
  localStorage.removeItem('mood'); localStorage.removeItem('moodNote');
  localStorage.removeItem('fortune');
  localStorage.removeItem('last_draw_week');
+ localStorage.removeItem('loginVerified');
  sessionStorage.removeItem('lastUnlocked');
  // 无需 reload —— 直接重新渲染所有状态
  document.querySelectorAll('.supply-box').forEach(function(b){ b.classList.remove('opening','reject'); });
@@ -4234,6 +4360,7 @@ function restoreMood(){
 }
 
 // ===== 初始化 =====
+checkLoginState();
 updateTreasureCount();
 restoreFortune();
 setTimeout(restoreMood,500);
