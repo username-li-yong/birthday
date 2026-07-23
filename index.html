@@ -3732,9 +3732,9 @@ function switchTab(event, tab){
 // ===== 日期锁已解除：所有箱子默认可解锁 =====
 function isBoxUnlocked(boxIndex){ return true; }
 
-// ===== 清除旧 mood/fortune 状态（开发/测试用，boxState 保留用作签到联动） =====
+// ===== 清除旧 mood 状态（fortune 保留跨页面持久化，签到联动用） =====
 localStorage.removeItem('mood'); localStorage.removeItem('moodNote');
-localStorage.removeItem('fortune');
+// fortune 不在此清除——由 doTimeRewind 手动重置，restoreFortune 负责跨刷新恢复
 
 // ===== 签到补给箱渲染（6个全部可点） =====
 function getCheckinState(){ try{ return JSON.parse(localStorage.getItem('boxState')||'[]'); }catch(e){ return Array(6).fill(false); } }
@@ -3865,8 +3865,18 @@ function submitQuizAnswer(){
  // 模糊匹配：先精确匹配主谜底，再匹配兼容别名数组
  const isCorrect = (answer===puzzle.a.toLowerCase()) || (puzzle.match && puzzle.match.some(function(w){ return answer===w.toLowerCase() || answer.includes(w.toLowerCase()) || w.toLowerCase().includes(answer); }));
  if(isCorrect){
- // 答对：清除该盒子的错误记录
+ // 答对：立即标记已领取（无论用户是否点"收进背包"，盒子都显示 ✅）
+ const state=getCheckinState(); state[currentBoxIdx]=true; saveCheckinState(state);
+ sessionStorage.setItem('lastUnlocked', currentBoxIdx);
+ // 清除该盒子的错误记录
  const wc=getWrongCounts(); delete wc['box'+currentBoxIdx]; saveWrongCounts(wc);
+ // 立即更新盒子外观
+ if(currentBoxEl){
+ currentBoxEl.classList.remove('today','opening'); currentBoxEl.classList.add('claimed');
+ currentBoxEl.innerHTML=`<span class="box-icon">${currentBoxEmoji}</span><span class="box-label">DAY ${currentBoxIdx+1}</span><span class="paw-mark">🐾</span>`;
+ currentBoxEl.onclick=null;
+ }
+ updateTreasureCount(); renderBackpack();
  dissolveInputAndShowReward();
  } else {
  incCurrentWrongCount();
@@ -3975,16 +3985,8 @@ function typewriterSlogan(el,text,cb){
  const t=setInterval(()=>{ el.textContent+=text[i]; i++; if(i>=text.length){ clearInterval(t); if(cb) cb(); } },60);
 }
 function collectReward(){
- const state=getCheckinState(); state[currentBoxIdx]=true; saveCheckinState(state);
- // 记录刚解锁的格子索引，供展柜入场动画使用
- sessionStorage.setItem('lastUnlocked', currentBoxIdx);
- if(currentBoxEl){
- currentBoxEl.classList.remove('today','opening'); currentBoxEl.classList.add('claimed');
- currentBoxEl.innerHTML=`<span class="box-icon">${currentBoxEmoji}</span><span class="box-label">DAY ${currentBoxIdx+1}</span><span class="paw-mark">🐾</span>`;
- currentBoxEl.onclick=null;
- }
- updateTreasureCount(); renderBackpack();
- drawFortune();
+ // 答对时已立即保存 boxState + 更新盒子外观，这里只做奖励面板收尾 + toast + 跳转
+ // （不再重复写 boxState / 盒子 DOM）
  // 🎁 弹出 toast 提示
  showGiftToast(currentBoxIdx);
  const reward=document.getElementById('quizReward');
