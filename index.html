@@ -2266,52 +2266,41 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
 .quiz-upper-right { flex: 1; width: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-width: 0; }
 
 /* 左侧·正方形毛玻璃图片上传区 */
-.image-hint-box {
- width: 170px; height: 170px; border-radius: 14px;
- border: 2px dashed rgba(255,255,255,.15);
- background: rgba(255,255,255,.04); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
- display: flex; align-items: center; justify-content: center;
- position: relative; overflow: hidden; cursor: pointer;
- transition: all 0.3s;
+/* sign_up 静态线索图（第 N 关只显示第 N 张） */
+.sign-up-hint-img {
+ width: 140px; height: 140px; border-radius: 14px;
+ border: 2px solid rgba(255,255,255,.2);
+ object-fit: cover; cursor: pointer;
+ transition: all 0.3s ease; background: rgba(255,255,255,.04);
+ backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
-.image-hint-box:hover { border-color: rgba(255,215,0,.3); box-shadow: 0 0 20px rgba(255,200,100,.1); }
-.image-hint-box .upload-prompt {
- text-align: center; color: rgba(255,255,255,.35); font-size: 14px;
- font-family: 'ZCOOL KuaiLe', cursive; pointer-events: none;
-}
-.image-hint-box .upload-prompt .prompt-icon { font-size: 32px; display: block; margin-bottom: 6px; opacity: .6; }
-.image-hint-box input[type="file"] {
- position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2;
-}
-.image-hint-box .hint-preview {
- position: absolute; inset: 0; width: 100%; height: 100%;
- object-fit: cover; border-radius: 12px; z-index: 1;
-}
-.image-hint-box.has-image { border-style: solid; border-color: rgba(255,255,255,.2); }
-.image-hint-box.has-image input[type="file"] { pointer-events: none; z-index: 0; }
-.image-hint-box.has-image .upload-prompt { display: none; }
-.image-hint-box .hint-preview { transition: transform 0.3s ease; }
-.image-hint-box.has-image:hover { cursor: pointer; }
-.image-hint-box.has-image:hover .hint-preview { transform: scale(1.03); }
-.image-hint-box.has-image::before {
+.sign-up-hint-img:hover { border-color: rgba(255,215,0,.4); box-shadow: 0 0 20px rgba(255,200,100,.15); transform: scale(1.05); }
+.sign-up-hint-img::before {
  content: ''; position: absolute; inset: 0; z-index: 3;
  background: rgba(0,0,0,0); transition: background 0.3s ease;
- pointer-events: none; border-radius: 12px;
+ pointer-events: none; border-radius: 14px;
 }
-.image-hint-box.has-image:hover::before {
- background: rgba(0,0,0,0.3);
+/* 单图容器 wrapper，负责 hover 蒙层伪元素 */
+.sign-up-hint-wrap {
+ position: relative; display: inline-block; border-radius: 14px;
 }
-.image-hint-box.has-image::after {
- content: '🔍 点击放大查看线索';
+.sign-up-hint-wrap:hover .sign-up-hint-img { transform: scale(1.05); }
+.sign-up-hint-wrap::before {
+ content: ''; position: absolute; inset: 0; z-index: 3;
+ background: rgba(0,0,0,0); transition: background 0.3s ease;
+ pointer-events: none; border-radius: 14px;
+}
+.sign-up-hint-wrap:hover::before { background: rgba(0,0,0,0.25); }
+.sign-up-hint-wrap::after {
+ content: '🔍 点击放大';
  position: absolute; inset: 0; z-index: 4;
  display: flex; align-items: center; justify-content: center;
  color: rgba(255,255,255,0); font-size: 13px;
  font-family: 'ZCOOL KuaiLe', cursive; letter-spacing: 1px;
- pointer-events: none; border-radius: 12px;
+ pointer-events: none; border-radius: 14px;
  transition: all 0.3s ease;
- text-shadow: 0 0 12px rgba(255,255,255,0);
 }
-.image-hint-box.has-image:hover::after {
+.sign-up-hint-wrap:hover::after {
  color: rgba(255,255,255,0.9);
  text-shadow: 0 0 12px rgba(255,255,255,0.5), 0 0 24px rgba(255,215,0,0.35);
 }
@@ -3530,10 +3519,8 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  <div class="quiz-panel" id="quizPanel">
  <div class="quiz-upper">
    <div class="quiz-upper-left">
-     <div class="image-hint-box" id="imageHintBox" title="点击上传线索图，上传后可点击放大" onclick="onHintBoxClick(event)">
-       <div class="upload-prompt"><span class="prompt-icon">📷</span>➕ 上传线索图</div>
-       <input type="file" accept="image/*" id="hintFileInput" onchange="handleHintImage(event)">
-       <img class="hint-preview" id="hintPreview" src="" alt="线索图" style="display:none">
+     <div class="sign-up-hint-wrap" id="signUpHintWrap">
+       <img class="sign-up-hint-img" id="signUpHintImg" src="" alt="线索图" onclick="event.stopPropagation();onSignUpHintClick()" title="点击放大查看线索">
      </div>
    </div>
    <div class="quiz-upper-right">
@@ -3834,10 +3821,10 @@ function showQuizOverlay(idx){
  reward.classList.remove('show');
  inputArea.style.display='flex';
  title.textContent=`谜题 ${idx+1} / 6`;
- // 填充问题文本并回显该关卡已存的线索图（不重置，保留持久化数据）
+ // 填充问题文本 + 加载该关卡对应的静态线索图
  var questionEl=document.getElementById('quizQuestion');
  if(questionEl) questionEl.textContent=quizPuzzles[idx].q;
- restoreHintImageForLevel();
+ loadSignUpHintForLevel(idx); // 第 idx 关 → /sign_up/(idx+1).{bmp|png}
 
  // 如果该盒子已累计≥3次错误，直接常驻救援弹窗
  if(getCurrentWrongCount()>=3){ showHelpPopup(); }
@@ -3845,27 +3832,20 @@ function showQuizOverlay(idx){
  overlay.classList.add('show');
  setTimeout(()=>input.focus(),400);
 }
-
-	// ====== 线索图云端同步（Supabase + IndexedDB + localStorage 三层存储） ======
-	// Supabase 配置（已配置，跨设备同步已启用）
-	const SUPABASE_URL='https://bbdjjmttgnkdtdgcxfmy.supabase.co', SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiZGpqbXR0Z25rZHRkZ2N4Zm15Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MDc3MjQsImV4cCI6MjEwMDI4MzcyNH0.793sPCFeFN7wYqtP8IP4MF-Srv3scm_JHqZAocPmk0U', HINT_BUCKET='hint-images';
-	const HINT_DB_NAME='HintCacheDB', HINT_DB_VER=1;
-	let _hintSupabase=null;
-	function hintSupabase(){ if(_hintSupabase)return _hintSupabase; if(typeof supabase!=='undefined'&&supabase.createClient)_hintSupabase=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); return _hintSupabase; }
-	function isOnline(){ return navigator.onLine; }
-	function openHintCacheDB(){ return new Promise((resolve,reject)=>{ const req=indexedDB.open(HINT_DB_NAME,HINT_DB_VER); req.onupgradeneeded=function(e){ if(!e.target.result.objectStoreNames.contains('images')) e.target.result.createObjectStore('images'); }; req.onsuccess=function(e){ resolve(e.target.result); }; req.onerror=function(e){ reject(e.target.error); }; }); }
-	async function getCachedHint(level){ try{ const db=await openHintCacheDB(); return new Promise(resolve=>{ const tx=db.transaction('images','readonly'); const req=tx.objectStore('images').get('level_'+level); req.onsuccess=function(){ resolve(req.result||null); }; req.onerror=function(){ resolve(null); }; tx.oncomplete=function(){ db.close(); }; }); }catch(e){ return null; } }
-	async function setCachedHint(level,data){ try{ const db=await openHintCacheDB(); return new Promise(resolve=>{ const tx=db.transaction('images','readwrite'); tx.objectStore('images').put(data,'level_'+level); tx.oncomplete=function(){ db.close(); resolve(); }; tx.onerror=function(){ db.close(); resolve(); }; }); }catch(e){} }
-	async function migrateOldHintImages(){ for(let i=0;i<6;i++){ const key='hint_img_level_'+i; const old=localStorage.getItem(key); if(old){ await setCachedHint(i,{base64:old,synced:false}); if(isOnline())await uploadHintToCloud(i,old); localStorage.removeItem(key); } } }
-	async function uploadHintToCloud(level,base64){ const client=hintSupabase(); if(!client)return; try{ const fileName='level_'+level+'.jpg'; const resp=await fetch(base64); const blob=await resp.blob(); const {error}=await client.storage.from(HINT_BUCKET).upload(fileName,blob,{contentType:'image/jpeg',upsert:true}); if(error){ console.warn('上传线索图失败:',error.message); return; } const cached=await getCachedHint(level); if(cached){ cached.synced=true; await setCachedHint(level,cached); } }catch(e){ console.warn('上传线索图异常:',e.message); } }
-	async function fetchHintFromCloud(level){ const client=hintSupabase(); if(!client)return null; try{ const fileName='level_'+level+'.jpg'; const {data}=client.storage.from(HINT_BUCKET).getPublicUrl(fileName); if(data&&data.publicUrl){ const resp=await fetch(data.publicUrl); if(resp.ok){ const blob=await resp.blob(); const base64=await new Promise(resolve=>{ const reader=new FileReader(); reader.onload=function(){ resolve(reader.result); }; reader.readAsDataURL(blob); }); await setCachedHint(level,{base64,cloudUrl:data.publicUrl,synced:true}); return base64; } } }catch(e){} return null; }
-	async function loadHintImage(level){ if(isOnline()){ const cloud=await fetchHintFromCloud(level); if(cloud)return cloud; } const cached=await getCachedHint(level); if(cached&&cached.base64)return cached.base64; const old=localStorage.getItem('hint_img_level_'+level); if(old){ await setCachedHint(level,{base64:old,synced:false}); return old; } return null; }
 
-	function getHintStorageKey(){ return 'hint_img_level_'+currentBoxIdx; }
-	async function restoreHintImageForLevel(){ var box=document.getElementById('imageHintBox'); var preview=document.getElementById('hintPreview'); var fileInput=document.getElementById('hintFileInput'); if(!box||!preview)return; var saved=await loadHintImage(currentBoxIdx); if(saved){ if(preview){ preview.src=saved; preview.style.display='block'; } if(box)box.classList.add('has-image'); } else { if(fileInput)fileInput.value=''; if(preview){ preview.style.display='none'; preview.src=''; } if(box)box.classList.remove('has-image'); } }
-	function resetHintImage(){ var box=document.getElementById('imageHintBox'); var preview=document.getElementById('hintPreview'); var fileInput=document.getElementById('hintFileInput'); if(fileInput)fileInput.value=''; if(preview){ preview.style.display='none'; preview.src=''; } if(box)box.classList.remove('has-image'); getCachedHint(currentBoxIdx).then(function(){ setCachedHint(currentBoxIdx,{base64:'',synced:false}); }); var client=hintSupabase(); if(client){ var fileName='level_'+currentBoxIdx+'.jpg'; client.storage.from(HINT_BUCKET).remove([fileName]).catch(function(){}); } }
-	function onHintBoxClick(e){ var box=document.getElementById('imageHintBox'); if(box&&box.classList.contains('has-image')){ var preview=document.getElementById('hintPreview'); if(preview&&preview.src)openLightbox(preview.src); return; } }
-	async function handleHintImage(event){ var file=event.target.files[0]; if(!file)return; var reader=new FileReader(); reader.onload=async function(e){ var base64=e.target.result; var preview=document.getElementById('hintPreview'); var box=document.getElementById('imageHintBox'); if(preview){ preview.src=base64; preview.style.display='block'; } if(box)box.classList.add('has-image'); await setCachedHint(currentBoxIdx,{base64:base64,synced:false}); if(isOnline())await uploadHintToCloud(currentBoxIdx,base64); }; reader.readAsDataURL(file); }
+	// ====== sign_up 静态线索图（彻底废除 UGC 上传 / Supabase / IndexedDB / localStorage） ======
+	// 物理文件：/sign_up/1.bmp ~ /sign_up/6.bmp 对应第 1~6 关，其中 /sign_up/2.png 是唯一的 .png
+	var SIGN_UP_EXT = ['.bmp','.png','.bmp','.bmp','.bmp','.bmp']; // 索引 0~5 → 关卡 1~6
+	function getSignUpHintSrc(idx){ return '/sign_up/' + (idx + 1) + SIGN_UP_EXT[idx]; }
+	// 第 idx 关弹窗打开时换图（idx: 0~5，由 showQuizOverlay 调用）
+	function loadSignUpHintForLevel(idx){
+	 var img = document.getElementById('signUpHintImg');
+	 if(img){ img.src = getSignUpHintSrc(idx); }
+	}
+	function onSignUpHintClick(){
+	 var img = document.getElementById('signUpHintImg');
+	 if(img && img.src) openLightbox(img.src);
+	}
 	function openLightbox(src){ var lb=document.getElementById('imageLightbox'); var img=document.getElementById('lightboxImg'); if(img)img.src=src; if(lb){ lb.classList.remove('fade-out'); lb.classList.add('show'); } if(lb)lb.onclick=function(ev){ if(ev.target===lb){ closeLightbox(); } }; }
 	function closeLightbox(){ var lb=document.getElementById('imageLightbox'); if(!lb)return; lb.classList.add('fade-out'); var onEnd=function(){ lb.classList.remove('show','fade-out'); lb.removeEventListener('animationend',onEnd); }; lb.addEventListener('animationend',onEnd); }
 
@@ -4415,18 +4395,15 @@ function initWarmClouds(){
 
 updateTreasureCount();
 
-// ===== 页面初始化：迁移旧数据 + 预加载云端线索图 =====
-(async function initHintImageRestore(){
- await migrateOldHintImages();
- if(currentBoxIdx>=0){
- var saved=await loadHintImage(currentBoxIdx);
- if(!saved) return;
- var preview=document.getElementById('hintPreview');
- var box=document.getElementById('imageHintBox');
- if(preview){ preview.src=saved; preview.style.display='block'; }
- if(box) box.classList.add('has-image');
- }
- })();
+// ===== quiz 关闭时清空图片引用，避免残留 =====
+(function(){
+ var orig = closeQuizOverlay;
+ closeQuizOverlay = function(){
+ var img = document.getElementById('signUpHintImg');
+ if(img) img.src = ''; // 关弹窗即清空，防止闪烁
+ orig.apply(this, arguments);
+ };
+})();
 
 // (openEnvelope 和 skipToPlanet 已移至脚本顶部)
 
@@ -5644,8 +5621,7 @@ function showWeekLockToast(){
 <!-- MediaPipe Hands CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
-<!-- Supabase JS SDK（云端线索图同步） -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Supabase JS SDK 已移除：线索图改为静态 /sign_up/ 6 图矩阵 -->
 
 <script>
 // ===== 粒子手势能量舱 · 核心逻辑 =====
