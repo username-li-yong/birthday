@@ -3515,7 +3515,7 @@ body.backpack-warm .planet-bg-stars { opacity: .05; }
  <div class="card-title-main" style="font-size:22px;margin-bottom:12px">📅 每日星际补给箱</div>
  <div class="card-subtitle" style="margin-bottom:4px">⏳ 时间锁已开启 · 每日零点解锁一个补给箱</div>
  <div class="card-subtitle" style="margin-bottom:10px;font-size:12px;color:rgba(255,255,255,.45)">
-   <span id="unlockProgress">—</span> · 7/25 ~ 7/30 倒计时中
+   <span id="unlockProgress">—</span> · 7/24 ~ 7/29 倒计时中
  </div>
  <div class="boxes-grid" id="boxesGrid"></div>
  <div class="fortune-3d-card" id="fortuneCard">
@@ -3857,13 +3857,13 @@ function switchTab(event, tab){
  if(tab==='egg') initGachapon();
 }
 
-// ===== 时间锁：每日零点解锁一个签到箱（7/25~7/30 共6天） =====
+// ===== 时间锁：每日零点解锁一个签到箱（7/24~7/29 共6天） =====
 function getBoxUnlockDate(boxIndex){
  const now=new Date();
  const thisYear=now.getFullYear();
  const birthday=new Date(thisYear,6,30); // 7月30日
- // Box 0 在生日前5天解锁(7/25), Box 5 在生日当天解锁(7/30)
- const daysBefore=5-boxIndex;
+ // Box 0 在生日前6天解锁(7/24), Box 5 在生日前1天解锁(7/29)
+ const daysBefore=6-boxIndex;
  const unlockDate=new Date(birthday);
  unlockDate.setDate(birthday.getDate()-daysBefore);
  unlockDate.setHours(0,0,0,0);
