@@ -4457,7 +4457,7 @@ function renderShowcase(){
  for(let i=0;i<6;i++){
  const cell=document.createElement('div'); cell.className='showcase-cell';
  if(state[i]){
- cell.innerHTML=`<div class="showcase-dome"></div><div class="glide-light"></div><img src="gift/${i+1}.jpg" class="showcase-gift-img" alt="礼物${i+1}" onclick="event.stopPropagation();openLightbox(this.src)" title="点击放大">`;
+ cell.innerHTML=`<div class="showcase-dome"></div><div class="glide-light"></div><img src="222/${i+1}.${i+1}.jpg" class="showcase-gift-img" alt="礼物${i+1}" onclick="event.stopPropagation();openLightbox(this.src)" title="点击放大">`;
  if(i === lastIdx){ cell.classList.add('just-unlocked'); }
  } else {
  cell.innerHTML=`<div class="showcase-dome"></div><div class="glide-light"></div><div class="gold-mist"></div><div class="empty-orbit"></div><div class="empty-star">🔮</div>`;
